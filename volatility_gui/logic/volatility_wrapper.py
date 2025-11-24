@@ -134,15 +134,13 @@ class VolatilityWrapper:
         from volatility3.framework.interfaces import plugins as plugins_interface
         
         # Proper FileHandler implementation that inherits from FileHandlerInterface
+        # and delegates to a real file object
         class FileHandler(plugins_interface.FileHandlerInterface):
             def __init__(self, filename: str):
                 super().__init__(filename)
                 self.output_dir = output_dir # output_dir is captured from the enclosing scope
-                self.file_count = 0
-                self._file_objects = []
-            
-            def _get_final_filename(self):
-                """Gets the final filename in the output directory."""
+                
+                # Determine final filename immediately
                 os.makedirs(self.output_dir, exist_ok=True)
                 output_filename = os.path.join(self.output_dir, self.preferred_filename)
                 filename_base, extension = os.path.splitext(output_filename)
@@ -152,40 +150,47 @@ class VolatilityWrapper:
                     output_filename = f"{filename_base}-{counter}{extension}"
                     counter += 1
                 
-                return output_filename
+                self.output_filename = output_filename
+                self.file_handle = open(self.output_filename, "wb+")
+                vollog.info(f"Creating dump file: {self.output_filename}")
+            
+            def _get_final_filename(self):
+                return self.output_filename
             
             def write(self, data):
-                """Write data to the file."""
-                if not hasattr(self, '_buffer'):
-                    self._buffer = io.BytesIO()
-                if hasattr(data, 'read'):
-                    self._buffer.write(data.read())
-                else:
-                    self._buffer.write(data)
-                return len(data) if not hasattr(data, 'read') else len(data.read())
+                return self.file_handle.write(data)
             
+            def read(self, size=-1):
+                return self.file_handle.read(size)
+                
+            def seek(self, offset, whence=0):
+                return self.file_handle.seek(offset, whence)
+                
+            def tell(self):
+                return self.file_handle.tell()
+                
             def close(self):
-                """Close and save the file."""
-                if self.closed:
-                    return
-                
-                if hasattr(self, '_buffer'):
-                    output_filename = self._get_final_filename()
-                    with open(output_filename, 'wb') as f:
-                        self._buffer.seek(0)
-                        f.write(self._buffer.read())
-                    self.file_count += 1
-                    vollog.info(f"Saved file: {output_filename}")
-                
+                if not self.file_handle.closed:
+                    self.file_handle.close()
                 super().close()
+                
+            def flush(self):
+                return self.file_handle.flush()
+                
+            def seekable(self):
+                return True
+                
+            def readable(self):
+                return True
+                
+            def writable(self):
+                return True
 
         
         # Save current directory
         original_dir = os.getcwd()
         
         try:
-            # Change to output directory so files are created there
-            os.chdir(output_dir)
             
             # Reset context for clean run
             self.ctx = contexts.Context()
@@ -197,23 +202,27 @@ class VolatilityWrapper:
             single_location = f"file://{os.path.abspath(file_path)}"
             self.ctx.config["automagic.LayerStacker.single_location"] = single_location
             
-            # Use windows.dumpfiles plugin
-            plugin_name = "windows.dumpfiles.DumpFiles"
+            # Use windows.pslist.PsList plugin for process dumping (procdump behavior)
+            plugin_name = "windows.pslist.PsList"
             plugin_list = framework.list_plugins()
             plugin_class = plugin_list.get(plugin_name)
             
             if not plugin_class:
                 raise ValueError(f"Plugin {plugin_name} not found")
             
-            # Set up configuration for dumpfiles
+            # Set up configuration for pslist
             base_config_path = "plugins"
-            # Filter by PID
-            self.ctx.config[interfaces.configuration.path_join(base_config_path, plugin_name, "pid")] = [int(pid)]
+            plugin_config_name = plugin_class.__name__
+            
+            # Filter by PID (pslist takes a list of PIDs)
+            self.ctx.config[interfaces.configuration.path_join(base_config_path, plugin_config_name, "pid")] = [int(pid)]
+            # Enable dump mode
+            self.ctx.config[interfaces.configuration.path_join(base_config_path, plugin_config_name, "dump")] = True
             
             # Choose appropriate automagics
             automagics = automagic.choose_automagic(self.automagics, plugin_class)
             
-            # Construct the plugin with FileHandler class (not instance)
+            # Construct the plugin with FileHandler class
             plugin = framework_plugins.construct_plugin(
                 self.ctx,
                 automagics,
@@ -223,19 +232,17 @@ class VolatilityWrapper:
                 FileHandler  # Pass the class, not an instance
             )
             
-            # Run the plugin - this will create dump files in current directory
+            # Run the plugin - this will create dump files
             treegrid = plugin.run()
             
             # Iterate through results to trigger file creation
+            # The FileHandler will be instantiated and used by the plugin during iteration
             file_count = 0
             if hasattr(treegrid, '_generator') and treegrid._generator is not None:
                 for level, item in treegrid._generator:
                     file_count += 1
             
-            if file_count == 0:
-                raise Exception(f"No files dumped for PID {pid}")
-            
-            vollog.info(f"Dumped {file_count} files for process {pid} to {output_dir}")
+            vollog.info(f"Dumped process {pid} to {output_dir}")
             return output_dir
             
         finally:
