@@ -1,7 +1,7 @@
 import os
 import threading
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QTabWidget, 
-                             QLabel, QFileDialog, QToolBar, QStatusBar, QMessageBox)
+                             QLabel, QFileDialog, QToolBar, QStatusBar, QMessageBox, QProgressBar)
 from PyQt6.QtGui import QAction, QIcon
 from PyQt6.QtCore import Qt, pyqtSignal, QObject
 
@@ -12,10 +12,8 @@ from volatility_gui.ui.registry_tab import RegistryTab
 from volatility_gui.ui.files_tab import FilesTab
 from volatility_gui.ui.malware_tab import MalwareTab
 from volatility_gui.logic.volatility_wrapper import VolatilityWrapper
-
-class WorkerSignals(QObject):
-    finished = pyqtSignal(object)
-    error = pyqtSignal(str)
+from volatility_gui.logic.worker import PluginWorker
+from volatility_gui.ui.log_viewer import LogViewer
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -26,6 +24,7 @@ class MainWindow(QMainWindow):
         # Initialize Wrapper
         self.vol_wrapper = VolatilityWrapper()
         self.current_dump_path = None
+        self.worker = None
         
         # Central Widget
         central_widget = QWidget()
@@ -47,6 +46,17 @@ class MainWindow(QMainWindow):
         # Status Bar
         self.setStatusBar(QStatusBar())
         self.statusBar().showMessage("Ready")
+        
+        # Progress Bar
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setRange(0, 100)
+        self.progress_bar.setVisible(False)
+        self.statusBar().addPermanentWidget(self.progress_bar)
+        
+        # Log Viewer
+        self.log_viewer = LogViewer(self)
+        self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.log_viewer)
+        self.log_viewer.hide()
 
     def init_tabs(self):
         # OS Info Tab
@@ -114,13 +124,36 @@ class MainWindow(QMainWindow):
         settings_action = QAction("Settings", self)
         settings_action.triggered.connect(self.open_settings)
         toolbar.addAction(settings_action)
+        
+        # Show Logs Action
+        logs_action = QAction("Show Logs", self)
+        logs_action.setCheckable(True)
+        logs_action.triggered.connect(self.toggle_logs)
+        toolbar.addAction(logs_action)
 
     def load_image(self):
         file_name, _ = QFileDialog.getOpenFileName(self, "Open Memory Dump", "", "All Files (*)")
         if file_name:
             self.current_dump_path = file_name
-            self.statusBar().showMessage(f"Loaded: {file_name}")
-            self.setWindowTitle(f"Volatility 3 GUI - {os.path.basename(file_name)}")
+            self.statusBar().showMessage(f"Loading: {file_name}...")
+            
+            # Load file in background to avoid freezing
+            # Since loading might take time (automagics), we can use the worker too
+            # But for now, let's just call it directly as it's usually fast enough for initial load
+            # Or better, wrap it in a worker if it's slow. Automagics can be slow.
+            # Let's run it in a thread.
+            
+            self.run_worker(self.vol_wrapper.load_file, self.on_load_finished, file_name)
+
+    def on_load_finished(self, result):
+        self.statusBar().showMessage(f"Loaded: {self.current_dump_path}")
+        self.setWindowTitle(f"Volatility 3 GUI - {os.path.basename(self.current_dump_path)}")
+
+    def toggle_logs(self, checked):
+        if checked:
+            self.log_viewer.show()
+        else:
+            self.log_viewer.hide()
 
     def run_plugin(self, plugin_name, callback):
         if not self.current_dump_path:
@@ -128,15 +161,40 @@ class MainWindow(QMainWindow):
             return
 
         self.statusBar().showMessage(f"Running {plugin_name}...")
+        self.run_worker(self.vol_wrapper.run_plugin, callback, plugin_name)
+
+    def run_worker(self, func, callback, *args, **kwargs):
+        """Run a function in a background thread."""
+        if self.worker and self.worker.isRunning():
+            QMessageBox.warning(self, "Busy", "A task is already running. Please wait.")
+            return
+
+        self.progress_bar.setValue(0)
+        self.progress_bar.setVisible(True)
         
-        # TODO: Run in a separate thread to avoid freezing UI
-        try:
-            results = self.vol_wrapper.run_plugin(plugin_name, self.current_dump_path)
-            callback(results)
-            self.statusBar().showMessage(f"Finished {plugin_name}")
-        except Exception as e:
-            self.statusBar().showMessage(f"Error running {plugin_name}")
-            QMessageBox.critical(self, "Error", str(e))
+        self.worker = PluginWorker(func, *args, **kwargs)
+        self.worker.started.connect(lambda: self.statusBar().showMessage("Processing..."))
+        self.worker.finished.connect(lambda result: self.on_worker_finished(result, callback))
+        self.worker.error.connect(self.on_worker_error)
+        self.worker.progress.connect(self.update_progress)
+        self.worker.start()
+
+    def on_worker_finished(self, result, callback):
+        self.progress_bar.setVisible(False)
+        self.statusBar().showMessage("Ready")
+        if callback:
+            callback(result)
+        self.worker = None
+
+    def on_worker_error(self, error_msg):
+        self.progress_bar.setVisible(False)
+        self.statusBar().showMessage("Error")
+        QMessageBox.critical(self, "Error", error_msg)
+        self.worker = None
+
+    def update_progress(self, percentage, message):
+        self.progress_bar.setValue(percentage)
+        self.statusBar().showMessage(message)
 
     def dump_process(self):
         """Dump the selected process to a file."""
@@ -156,13 +214,12 @@ class MainWindow(QMainWindow):
         
         self.statusBar().showMessage(f"Dumping process {pid}...")
         
-        try:
-            output_file = self.vol_wrapper.dump_process(self.current_dump_path, pid, output_dir)
-            self.statusBar().showMessage(f"Process dumped successfully")
-            QMessageBox.information(self, "Success", f"Process {pid} dumped to:\n{output_file}")
-        except Exception as e:
-            self.statusBar().showMessage(f"Error dumping process")
-            QMessageBox.critical(self, "Error", f"Failed to dump process {pid}:\n{str(e)}")
+        # Run in worker
+        self.run_worker(
+            self.vol_wrapper.dump_process, 
+            lambda res: QMessageBox.information(self, "Success", f"Process {pid} dumped to:\n{res}"),
+            self.current_dump_path, pid, output_dir
+        )
     
     def open_settings(self):
         QMessageBox.information(self, "Settings", "Settings dialog not implemented yet.")

@@ -14,25 +14,23 @@ vollog = logging.getLogger(__name__)
 
 class VolatilityWrapper:
     def __init__(self):
-        self.ctx = contexts.Context()
+        self.ctx = None
+        self.automagics = []
         self.failures = framework.import_files(plugins, True)
         if self.failures:
             vollog.warning(f"Failed to import some plugins: {self.failures}")
-            
-        self.automagics = automagic.available(self.ctx)
 
-    def run_plugin(self, plugin_name: str, file_path: str, additional_config: Dict[str, Any] = None) -> List[Dict[str, Any]]:
+    def load_file(self, file_path: str, **kwargs):
         """
-        Runs a specific plugin on a memory dump.
+        Load a memory dump file and initialize the context.
         
         Args:
-            plugin_name: The name of the plugin to run (e.g., 'windows.pslist.PsList').
             file_path: Path to the memory dump file.
-            additional_config: Optional dictionary of additional configuration parameters.
-            
-        Returns:
-            A list of dictionaries representing the rows of the result.
+            **kwargs: Additional arguments (e.g., progress_callback)
         """
+        import os
+        from volatility3.framework import contexts, automagic
+        
         # Reset context for clean run
         self.ctx = contexts.Context()
         
@@ -42,6 +40,24 @@ class VolatilityWrapper:
         # Set the single location (memory dump file)
         single_location = f"file://{os.path.abspath(file_path)}"
         self.ctx.config["automagic.LayerStacker.single_location"] = single_location
+
+    def run_plugin(self, plugin_name: str, additional_config: Dict[str, Any] = None, progress_callback=None) -> List[Dict[str, Any]]:
+        """
+        Run a specific Volatility 3 plugin.
+        
+        Args:
+            plugin_name: The name of the plugin to run (e.g., "windows.pslist.PsList")
+            additional_config: Optional dictionary of configuration options
+            progress_callback: Optional callback function for progress reporting
+            
+        Returns:
+            A list of dictionaries containing the plugin results
+        """
+        if not self.ctx:
+            raise RuntimeError("Context not initialized. Load a file first.")
+            
+        import volatility3.framework.plugins as framework_plugins
+        from volatility3.framework import automagic, interfaces
         
         # Find the plugin class
         plugin_list = framework.list_plugins()
@@ -74,7 +90,7 @@ class VolatilityWrapper:
                 automagics,
                 plugin_class,
                 base_config_path,
-                None, # Progress callback
+                progress_callback, # Progress callback
                 None  # File handler factory
             )
             
@@ -228,7 +244,7 @@ class VolatilityWrapper:
                 automagics,
                 plugin_class,
                 base_config_path,
-                None,  # Progress callback
+                progress_callback,  # Progress callback
                 FileHandler  # Pass the class, not an instance
             )
             
@@ -249,7 +265,7 @@ class VolatilityWrapper:
             # Restore original directory
             os.chdir(original_dir)
 
-    def dump_file(self, file_path: str, offset: str, output_dir: str) -> str:
+    def dump_file(self, file_path: str, offset: str, output_dir: str, progress_callback=None) -> str:
         """
         Dump a specific file to disk using windows.dumpfiles plugin.
         
@@ -257,6 +273,7 @@ class VolatilityWrapper:
             file_path: Path to the memory dump file
             offset: Virtual offset of the FILE_OBJECT
             output_dir: Directory to save the dumped file
+            progress_callback: Optional callback function for progress reporting
             
         Returns:
             Path to the dumped directory
@@ -362,7 +379,7 @@ class VolatilityWrapper:
                 automagics,
                 plugin_class,
                 base_config_path,
-                None,  # Progress callback
+                progress_callback,  # Progress callback
                 FileHandler  # Pass the class, not an instance
             )
             
