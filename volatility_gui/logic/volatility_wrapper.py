@@ -98,13 +98,13 @@ class VolatilityWrapper:
             treegrid = plugin.run()
             
             # Convert TreeGrid to list of dicts
-            return self._process_treegrid(treegrid)
+            return self._process_treegrid(treegrid, progress_callback)
             
         except Exception as e:
             vollog.error(f"Error running plugin {plugin_name}: {e}")
             raise e
 
-    def _process_treegrid(self, treegrid: interfaces.renderers.TreeGrid) -> List[Dict[str, Any]]:
+    def _process_treegrid(self, treegrid: interfaces.renderers.TreeGrid, progress_callback=None) -> List[Dict[str, Any]]:
         """Converts a TreeGrid to a list of dictionaries."""
         results = []
         
@@ -115,6 +115,7 @@ class VolatilityWrapper:
         # The generator yields (level, values) tuples
         try:
             if hasattr(treegrid, '_generator') and treegrid._generator is not None:
+                count = 0
                 for level, item in treegrid._generator:
                     row = {}
                     for i, value in enumerate(item):
@@ -124,6 +125,11 @@ class VolatilityWrapper:
                             vollog.warning(f"Error converting value at index {i}: {e}")
                             row[columns[i]] = "N/A"
                     results.append(row)
+                    
+                    count += 1
+                    if progress_callback and count % 10 == 0:
+                        progress_callback(-1, f"Processing results: {count} rows")
+                        
             else:
                 vollog.error("TreeGrid has no _generator attribute or it's None")
         except Exception as e:
@@ -134,7 +140,7 @@ class VolatilityWrapper:
         vollog.info(f"Processed {len(results)} rows from TreeGrid")
         return results
 
-    def dump_process(self, file_path: str, pid: str, output_dir: str) -> str:
+    def dump_process(self, file_path: str, pid: str, output_dir: str, progress_callback=None) -> str:
         """
         Dump a process to disk using windows.dumpfiles plugin.
         

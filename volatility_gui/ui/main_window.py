@@ -193,7 +193,11 @@ class MainWindow(QMainWindow):
         self.worker = None
 
     def update_progress(self, percentage, message):
-        self.progress_bar.setValue(percentage)
+        if percentage == -1:
+            self.progress_bar.setRange(0, 0)  # Indeterminate mode
+        else:
+            self.progress_bar.setRange(0, 100)
+            self.progress_bar.setValue(percentage)
         self.statusBar().showMessage(message)
 
     def dump_process(self):
