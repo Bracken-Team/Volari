@@ -21,6 +21,7 @@ class FilesTab(QWidget):
         
         self.dump_btn = QPushButton("Dump Selected File")
         self.dump_btn.setEnabled(False)
+        self.dump_btn.clicked.connect(self.dump_file)
         controls_layout.addWidget(self.dump_btn)
         
         layout.addLayout(controls_layout)
@@ -73,3 +74,39 @@ class FilesTab(QWidget):
             self.table.setItem(row_idx, 1, QTableWidgetItem(name))
             
         self.status_label.setText(f"Found {len(data)} files")
+
+    def dump_file(self):
+        """Dump the selected file."""
+        offset = self.get_selected_offset()
+        if not offset:
+            return
+
+        from PyQt6.QtWidgets import QFileDialog, QMessageBox
+        
+        output_dir = QFileDialog.getExistingDirectory(self, "Select Output Directory")
+        if not output_dir:
+            return
+            
+        try:
+            self.status_label.setText(f"Dumping file at offset {offset}...")
+            # Assuming main_window has passed volatility_wrapper reference or we can access it
+            # Ideally, we should emit a signal, but for now let's assume direct access via parent or similar
+            # Since FilesTab is instantiated in MainWindow, we can add a method to set wrapper
+            
+            if hasattr(self, 'vol_wrapper'):
+                # We need the memory file path too. 
+                # This suggests we should emit a signal to be handled by MainWindow
+                pass
+            else:
+                # Fallback: try to find it from parent
+                parent = self.window()
+                if hasattr(parent, 'vol_wrapper') and hasattr(parent, 'current_dump_path'):
+                    parent.vol_wrapper.dump_file(parent.current_dump_path, offset, output_dir)
+                    QMessageBox.information(self, "Success", f"File dumped to {output_dir}")
+                    self.status_label.setText("File dumped successfully")
+                else:
+                    QMessageBox.warning(self, "Error", "Volatility wrapper not found")
+                    
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Failed to dump file: {str(e)}")
+            self.status_label.setText("Error dumping file")
