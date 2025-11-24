@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, 
-                             QHeaderView, QPushButton, QHBoxLayout, QLabel)
+                             QHeaderView, QPushButton, QHBoxLayout, QLabel, QLineEdit)
 from PyQt6.QtCore import Qt
 
 class NetworkTab(QWidget):
@@ -21,11 +21,21 @@ class NetworkTab(QWidget):
         
         layout.addLayout(controls_layout)
         
+        # Search bar
+        search_layout = QHBoxLayout()
+        search_layout.addWidget(QLabel("Search:"))
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Filter results...")
+        self.search_input.textChanged.connect(self.filter_table)
+        search_layout.addWidget(self.search_input)
+        layout.addLayout(search_layout)
+        
         # Table
         self.table = QTableWidget()
         self.table.setColumnCount(5)
         self.table.setHorizontalHeaderLabels(["Offset", "Proto", "LocalAddr", "ForeignAddr", "State"])
-        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+        self.table.horizontalHeader().setStretchLastSection(True)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setSortingEnabled(True)
         
@@ -63,4 +73,16 @@ class NetworkTab(QWidget):
             self.table.setItem(row_idx, 3, QTableWidgetItem(foreign))
             self.table.setItem(row_idx, 4, QTableWidgetItem(state))
             
-        self.status_label.setText(f"Showing {len(data)} connections")
+        self.status_label.setText(f"Loaded {len(data)} network connections")
+
+    def filter_table(self, text):
+        """Filter table rows based on search text."""
+        search_text = text.lower()
+        for row in range(self.table.rowCount()):
+            match = False
+            for col in range(self.table.columnCount()):
+                item = self.table.item(row, col)
+                if item and search_text in item.text().lower():
+                    match = True
+                    break
+            self.table.setRowHidden(row, not match)

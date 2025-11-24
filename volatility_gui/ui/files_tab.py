@@ -1,6 +1,7 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, 
-                             QHeaderView, QPushButton, QHBoxLayout, QLabel)
+                             QHeaderView, QPushButton, QHBoxLayout, QLabel, QFileDialog, QMessageBox, QLineEdit)
 from PyQt6.QtCore import Qt
+import os
 
 class FilesTab(QWidget):
     def __init__(self):
@@ -26,11 +27,21 @@ class FilesTab(QWidget):
         
         layout.addLayout(controls_layout)
         
+        # Search bar
+        search_layout = QHBoxLayout()
+        search_layout.addWidget(QLabel("Search:"))
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Filter results...")
+        self.search_input.textChanged.connect(self.filter_table)
+        search_layout.addWidget(self.search_input)
+        layout.addLayout(search_layout)
+        
         # Table
         self.table = QTableWidget()
         self.table.setColumnCount(2)
         self.table.setHorizontalHeaderLabels(["Offset", "Name"])
-        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+        self.table.horizontalHeader().setStretchLastSection(True)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setSortingEnabled(True)
         self.table.itemSelectionChanged.connect(self.on_selection_changed)
@@ -68,45 +79,65 @@ class FilesTab(QWidget):
         
         for row_idx, row_data in enumerate(data):
             offset = str(row_data.get('Offset', ''))
-            name = str(row_data.get('Name', row_data.get('FileName', '')))
+            name = str(row_data.get('Name', ''))
             
             self.table.setItem(row_idx, 0, QTableWidgetItem(offset))
             self.table.setItem(row_idx, 1, QTableWidgetItem(name))
             
-        self.status_label.setText(f"Found {len(data)} files")
+        self.status_label.setText(f"Loaded {len(data)} files")
 
     def dump_file(self):
         """Dump the selected file."""
         offset = self.get_selected_offset()
         if not offset:
+            QMessageBox.warning(self, "Error", "Please select a file to dump.")
             return
-
-        from PyQt6.QtWidgets import QFileDialog, QMessageBox
-        
+            
+        # Get output directory
         output_dir = QFileDialog.getExistingDirectory(self, "Select Output Directory")
         if not output_dir:
             return
             
+        # Call main window's dump method (assumes parent is MainWindow or has access)
+        # Since FilesTab is a child of QTabWidget which is in MainWindow, we can try to access it
+        # Or better, emit a signal. But for now, let's assume direct access via parent chain or passed reference
+        # Actually, in MainWindow.init_tabs, we didn't pass a reference.
+        # But MainWindow connects the button? No, FilesTab connects it to self.dump_file.
+        # So FilesTab needs access to vol_wrapper.
+        
+        # Wait, in previous implementation (FilesTab.dump_file), it was accessing self.window().vol_wrapper
+        # Let's check how it was implemented before.
+        
         try:
-            self.status_label.setText(f"Dumping file at offset {offset}...")
-            # Assuming main_window has passed volatility_wrapper reference or we can access it
-            # Ideally, we should emit a signal, but for now let's assume direct access via parent or similar
-            # Since FilesTab is instantiated in MainWindow, we can add a method to set wrapper
-            
-            if hasattr(self, 'vol_wrapper'):
-                # We need the memory file path too. 
-                # This suggests we should emit a signal to be handled by MainWindow
-                pass
-            else:
-                # Fallback: try to find it from parent
-                parent = self.window()
-                if hasattr(parent, 'vol_wrapper') and hasattr(parent, 'current_dump_path'):
-                    parent.vol_wrapper.dump_file(parent.current_dump_path, offset, output_dir)
-                    QMessageBox.information(self, "Success", f"File dumped to {output_dir}")
-                    self.status_label.setText("File dumped successfully")
+            # Access MainWindow instance
+            main_window = self.window()
+            if hasattr(main_window, 'vol_wrapper') and hasattr(main_window, 'current_dump_path'):
+                if not main_window.current_dump_path:
+                    QMessageBox.warning(self, "Error", "Please load a memory dump first.")
+                    return
+                
+                # Use main_window.run_worker to prevent freezing
+                if hasattr(main_window, 'run_worker'):
+                    main_window.run_worker(
+                        main_window.vol_wrapper.dump_file,
+                        lambda res: QMessageBox.information(self, "Success", f"File dumped to:\n{res}"),
+                        main_window.current_dump_path, offset, output_dir
+                    )
                 else:
                     QMessageBox.warning(self, "Error", "Volatility wrapper not found")
                     
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to dump file: {str(e)}")
             self.status_label.setText("Error dumping file")
+
+    def filter_table(self, text):
+        """Filter table rows based on search text."""
+        search_text = text.lower()
+        for row in range(self.table.rowCount()):
+            match = False
+            for col in range(self.table.columnCount()):
+                item = self.table.item(row, col)
+                if item and search_text in item.text().lower():
+                    match = True
+                    break
+            self.table.setRowHidden(row, not match)

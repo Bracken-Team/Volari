@@ -1,5 +1,5 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, 
-                             QHeaderView, QPushButton, QHBoxLayout, QLabel, QComboBox)
+                             QHeaderView, QPushButton, QHBoxLayout, QLabel, QComboBox, QLineEdit)
 from PyQt6.QtCore import Qt
 
 class ProcessTab(QWidget):
@@ -44,9 +44,19 @@ class ProcessTab(QWidget):
         
         layout.addLayout(controls_layout)
         
+        # Search bar
+        search_layout = QHBoxLayout()
+        search_layout.addWidget(QLabel("Search:"))
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("Filter results...")
+        self.search_input.textChanged.connect(self.filter_table)
+        search_layout.addWidget(self.search_input)
+        layout.addLayout(search_layout)
+        
         # Table view for all plugins
         self.table = QTableWidget()
-        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+        self.table.horizontalHeader().setStretchLastSection(True)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setSortingEnabled(True)
         self.table.itemSelectionChanged.connect(self.on_selection_changed)
@@ -170,3 +180,15 @@ class ProcessTab(QWidget):
                 self.table.setItem(row_idx, col_idx, QTableWidgetItem(str(value)))
         
         self.status_label.setText(f"Loaded {len(data)} items")
+
+    def filter_table(self, text):
+        """Filter table rows based on search text."""
+        search_text = text.lower()
+        for row in range(self.table.rowCount()):
+            match = False
+            for col in range(self.table.columnCount()):
+                item = self.table.item(row, col)
+                if item and search_text in item.text().lower():
+                    match = True
+                    break
+            self.table.setRowHidden(row, not match)
