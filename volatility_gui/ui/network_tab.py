@@ -1,10 +1,12 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, 
-                             QHeaderView, QPushButton, QHBoxLayout, QLabel, QLineEdit)
+                             QHeaderView, QPushButton, QHBoxLayout, QLabel, QLineEdit, QMessageBox, QFileDialog)
 from PyQt6.QtCore import Qt
+from volatility_gui.logic.exporter import Exporter
 
 class NetworkTab(QWidget):
     def __init__(self):
         super().__init__()
+        self.current_data = None  # Cache for export
         self.init_ui()
 
     def init_ui(self):
@@ -18,6 +20,10 @@ class NetworkTab(QWidget):
         
         self.refresh_btn = QPushButton("Scan Network")
         controls_layout.addWidget(self.refresh_btn)
+        
+        self.export_btn = QPushButton("Export Results")
+        self.export_btn.clicked.connect(self.export_results)
+        controls_layout.addWidget(self.export_btn)
         
         layout.addLayout(controls_layout)
         
@@ -43,6 +49,7 @@ class NetworkTab(QWidget):
 
     def update_table(self, data):
         """Update table with network connection data."""
+        self.current_data = data  # Cache data
         self.table.setRowCount(0)
         
         if not data:
@@ -86,3 +93,32 @@ class NetworkTab(QWidget):
                     match = True
                     break
             self.table.setRowHidden(row, not match)
+
+    def export_results(self):
+        """Export current results to a file."""
+        if not self.current_data:
+            QMessageBox.warning(self, "Export Error", "No data to export.")
+            return
+            
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, 
+            "Export Results", 
+            "network_scan_export",
+            "JSON Files (*.json);;CSV Files (*.csv);;HTML Files (*.html)"
+        )
+        
+        if not file_path:
+            return
+            
+        success = False
+        if file_path.endswith('.json'):
+            success = Exporter.export_to_json(self.current_data, file_path)
+        elif file_path.endswith('.csv'):
+            success = Exporter.export_to_csv(self.current_data, file_path)
+        elif file_path.endswith('.html'):
+            success = Exporter.export_to_html(self.current_data, file_path)
+            
+        if success:
+            QMessageBox.information(self, "Export Success", f"Data exported to {file_path}")
+        else:
+            QMessageBox.critical(self, "Export Error", "Failed to export data.")

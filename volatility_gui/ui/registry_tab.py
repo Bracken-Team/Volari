@@ -1,6 +1,7 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, 
-                             QHeaderView, QPushButton, QHBoxLayout, QLabel, QComboBox, QLineEdit)
+                             QHeaderView, QPushButton, QHBoxLayout, QLabel, QComboBox, QLineEdit, QMessageBox, QFileDialog)
 from PyQt6.QtCore import Qt
+from volatility_gui.logic.exporter import Exporter
 
 class RegistryTab(QWidget):
     def __init__(self):
@@ -33,6 +34,10 @@ class RegistryTab(QWidget):
         self.refresh_btn = QPushButton("Run Analysis")
         controls_layout.addWidget(self.refresh_btn)
         
+        self.export_btn = QPushButton("Export Results")
+        self.export_btn.clicked.connect(self.export_results)
+        controls_layout.addWidget(self.export_btn)
+        
         layout.addLayout(controls_layout)
         
         # Search bar
@@ -54,6 +59,52 @@ class RegistryTab(QWidget):
         self.table.setSortingEnabled(True)
         
         layout.addWidget(self.table)
+
+    # ... (existing methods)
+
+    def filter_table(self, text):
+        """Filter table rows based on search text."""
+        search_text = text.lower()
+        for row in range(self.table.rowCount()):
+            match = False
+            for col in range(self.table.columnCount()):
+                item = self.table.item(row, col)
+                if item and search_text in item.text().lower():
+                    match = True
+                    break
+            self.table.setRowHidden(row, not match)
+
+    def export_results(self):
+        """Export current plugin results to a file."""
+        current_plugin = self.plugin_combo.currentText()
+        data = self.plugin_data_cache.get(current_plugin)
+        
+        if not data:
+            QMessageBox.warning(self, "Export Error", "No data to export.")
+            return
+            
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, 
+            "Export Results", 
+            f"{current_plugin.replace(' ', '_')}_export",
+            "JSON Files (*.json);;CSV Files (*.csv);;HTML Files (*.html)"
+        )
+        
+        if not file_path:
+            return
+            
+        success = False
+        if file_path.endswith('.json'):
+            success = Exporter.export_to_json(data, file_path)
+        elif file_path.endswith('.csv'):
+            success = Exporter.export_to_csv(data, file_path)
+        elif file_path.endswith('.html'):
+            success = Exporter.export_to_html(data, file_path)
+            
+        if success:
+            QMessageBox.information(self, "Export Success", f"Data exported to {file_path}")
+        else:
+            QMessageBox.critical(self, "Export Error", "Failed to export data.")
 
     def get_selected_plugin(self):
         """Get the currently selected plugin name."""
