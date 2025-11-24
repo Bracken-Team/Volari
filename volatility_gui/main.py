@@ -12,7 +12,10 @@ def main():
     app = QApplication(sys.argv)
     
     # Apply the complete dark theme to your Qt App.
-    qdarktheme.setup_theme()
+    if hasattr(qdarktheme, "setup_theme"):
+        qdarktheme.setup_theme()
+    else:
+        app.setStyleSheet(qdarktheme.load_stylesheet())
     
     window = MainWindow()
     window.show()

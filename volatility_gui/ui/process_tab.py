@@ -1,10 +1,19 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, 
-                             QHeaderView, QPushButton, QHBoxLayout, QLabel)
+                             QHeaderView, QPushButton, QHBoxLayout, QLabel, QComboBox)
 from PyQt6.QtCore import Qt
 
 class ProcessTab(QWidget):
     def __init__(self):
         super().__init__()
+        # Cache data for each plugin
+        self.plugin_data_cache = {
+            "PS List": None,
+            "PS Scan": None,
+            "PS Tree": None,
+            "Handles": None,
+            "DLL List": None,
+            "Command Line": None
+        }
         self.init_ui()
 
     def init_ui(self):
@@ -16,46 +25,148 @@ class ProcessTab(QWidget):
         controls_layout.addWidget(self.status_label)
         controls_layout.addStretch()
         
-        self.refresh_btn = QPushButton("Refresh Process List")
+        # Plugin selector
+        self.plugin_combo = QComboBox()
+        self.plugin_combo.addItems(["PS List", "PS Scan", "PS Tree", "Handles", "DLL List", "Command Line"])
+        self.plugin_combo.currentTextChanged.connect(self.on_plugin_changed)
+        controls_layout.addWidget(QLabel("Plugin:"))
+        controls_layout.addWidget(self.plugin_combo)
+        
+        self.refresh_btn = QPushButton("Start Analysis")
+        self.refresh_btn.clicked.connect(lambda: self.refresh_btn.setText("Refresh"))
         # self.refresh_btn.clicked.connect(self.refresh_data) # To be connected by main window
         controls_layout.addWidget(self.refresh_btn)
         
+        self.dump_btn = QPushButton("Dump Process")
+        self.dump_btn.setEnabled(False)  # Disabled until a process is selected
+        # self.dump_btn.clicked.connect(self.dump_process) # To be connected by main window
+        controls_layout.addWidget(self.dump_btn)
+        
         layout.addLayout(controls_layout)
         
-        # Table
+        # Table view for all plugins
         self.table = QTableWidget()
-        self.table.setColumnCount(6)
-        self.table.setHorizontalHeaderLabels(["PID", "PPID", "ImageFileName", "Offset", "Threads", "Handles"])
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setSortingEnabled(True)
+        self.table.itemSelectionChanged.connect(self.on_selection_changed)
         
         layout.addWidget(self.table)
+        
+        # Set initial columns
+        self.on_plugin_changed("PS List")
+    
+    def on_plugin_changed(self, plugin_name):
+        """Update table columns when plugin changes and restore cached data."""
+        column_map = {
+            "PS List": ["PID", "PPID", "ImageFileName", "Offset(V)", "Threads", "Handles", "SessionId", "Wow64", "CreateTime", "ExitTime"],
+            "PS Scan": ["PID", "PPID", "ImageFileName", "Offset(V)", "Threads", "Handles", "SessionId", "Wow64", "CreateTime", "ExitTime"],
+            "PS Tree": ["PID", "PPID", "ImageFileName", "Offset(V)", "Threads", "Handles", "SessionId", "Wow64", "CreateTime", "ExitTime"],
+            "Handles": ["PID", "Process", "Offset", "HandleValue", "Type", "GrantedAccess", "Name"],
+            "DLL List": ["PID", "Process", "Base", "Size", "Name", "Path", "LoadTime"],
+            "Command Line": ["PID", "Process", "Args"]
+        }
+        
+        columns = column_map.get(plugin_name, column_map["PS List"])
+        
+        # Update table columns
+        self.table.setColumnCount(len(columns))
+        self.table.setHorizontalHeaderLabels(columns)
+        
+        # Clear current display
+        self.table.setRowCount(0)
+        
+        # Restore cached data if available
+        cached_data = self.plugin_data_cache.get(plugin_name)
+        if cached_data is not None:
+            self._display_data(cached_data)
+        else:
+            self.status_label.setText("Ready to analyze")
+    
+    def get_selected_plugin(self):
+        """Get the currently selected plugin name."""
+        plugin_map = {
+            "PS List": "windows.pslist.PsList",
+            "PS Scan": "windows.psscan.PsScan",
+            "PS Tree": "windows.pstree.PsTree",
+            "Handles": "windows.handles.Handles",
+            "DLL List": "windows.dlllist.DllList",
+            "Command Line": "windows.cmdline.CmdLine"
+        }
+        return plugin_map.get(self.plugin_combo.currentText())
+    
+    def on_selection_changed(self):
+        """Enable/disable dump button based on selection."""
+        has_selection = len(self.table.selectedItems()) > 0
+        self.dump_btn.setEnabled(has_selection)
+    
+    def get_selected_pid(self):
+        """Get the PID of the currently selected process."""
+        selected_rows = self.table.selectionModel().selectedRows()
+        if selected_rows:
+            row = selected_rows[0].row()
+            pid_item = self.table.item(row, 0)
+            if pid_item:
+                return pid_item.text()
+        return None
 
     def update_table(self, data):
         """
-        Updates the table with a list of dictionaries.
-        Expected keys: PID, PPID, ImageFileName, Offset, Threads, Handles
+        Updates the display with process data and caches it.
+        This is called when new data arrives from a plugin.
         """
+        if not data:
+            self.status_label.setText("No processes found")
+            return
+        
+        # Always cache the data for the current plugin
+        current_plugin = self.plugin_combo.currentText()
+        self.plugin_data_cache[current_plugin] = data
+        
+        # Display the data
+        self._display_data(data)
+    
+    def _display_data(self, data):
+        """Internal method to display data without caching."""
+        if not data:
+            return
+        
+        # Display in table view (update_table_view will set columns)
+        self.update_table_view(data)
+    
+    def update_table_view(self, data):
+        """Update table view for most plugins."""
+        plugin_name = self.plugin_combo.currentText()
+        
+        # Define column mappings for each plugin
+        column_maps = {
+            "PS List": ["PID", "PPID", "ImageFileName", "Offset(V)", "Threads", "Handles", "SessionId", "Wow64", "CreateTime", "ExitTime"],
+            "PS Scan": ["PID", "PPID", "ImageFileName", "Offset(V)", "Threads", "Handles", "SessionId", "Wow64", "CreateTime", "ExitTime"],
+            "PS Tree": ["PID", "PPID", "ImageFileName", "Offset(V)", "Threads", "Handles", "SessionId", "Wow64", "CreateTime", "ExitTime"],
+            "Handles": ["PID", "Process", "Offset", "HandleValue", "Type", "GrantedAccess", "Name"],
+            "DLL List": ["PID", "Process", "Base", "Size", "Name", "Path", "LoadTime"],
+            "Command Line": ["PID", "Process", "Args"]
+        }
+        
+        columns = column_maps.get(plugin_name, column_maps["PS List"])
+        
+        # Set column count and headers FIRST
+        self.table.setColumnCount(len(columns))
+        self.table.setHorizontalHeaderLabels(columns)
+        
+        # Then set row count and populate data
         self.table.setRowCount(0)
         self.table.setRowCount(len(data))
         
         for row_idx, row_data in enumerate(data):
-            # Map keys to columns. Adjust keys based on actual Volatility output
-            # Common keys: 'PID', 'PPID', 'ImageFileName', 'Offset', 'Threads', 'Handles'
-            
-            pid = str(row_data.get('PID', ''))
-            ppid = str(row_data.get('PPID', ''))
-            name = str(row_data.get('ImageFileName', ''))
-            offset = str(row_data.get('Offset', ''))
-            threads = str(row_data.get('Threads', ''))
-            handles = str(row_data.get('Handles', ''))
-            
-            self.table.setItem(row_idx, 0, QTableWidgetItem(pid))
-            self.table.setItem(row_idx, 1, QTableWidgetItem(ppid))
-            self.table.setItem(row_idx, 2, QTableWidgetItem(name))
-            self.table.setItem(row_idx, 3, QTableWidgetItem(offset))
-            self.table.setItem(row_idx, 4, QTableWidgetItem(threads))
-            self.table.setItem(row_idx, 5, QTableWidgetItem(handles))
-            
-        self.status_label.setText(f"Showing {len(data)} processes")
+            for col_idx, col_name in enumerate(columns):
+                # Handle special cases for column name variations
+                value = ""
+                if col_name == "Offset(V)":
+                    value = row_data.get("Offset(V)", row_data.get("Offset", ""))
+                else:
+                    value = row_data.get(col_name, "")
+                
+                self.table.setItem(row_idx, col_idx, QTableWidgetItem(str(value)))
+        
+        self.status_label.setText(f"Loaded {len(data)} items")

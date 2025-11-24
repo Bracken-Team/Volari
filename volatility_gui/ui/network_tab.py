@@ -32,14 +32,29 @@ class NetworkTab(QWidget):
         layout.addWidget(self.table)
 
     def update_table(self, data):
+        """Update table with network connection data."""
         self.table.setRowCount(0)
+        
+        if not data:
+            self.status_label.setText("No network connections found")
+            return
+        
         self.table.setRowCount(len(data))
         
         for row_idx, row_data in enumerate(data):
+            # NetScan columns: Offset, Proto, LocalAddr, LocalPort, ForeignAddr, ForeignPort, State, PID, Owner, Created
             offset = str(row_data.get('Offset', ''))
             proto = str(row_data.get('Proto', ''))
-            local = str(row_data.get('LocalAddr', ''))
-            foreign = str(row_data.get('ForeignAddr', ''))
+            
+            # Combine address and port for display
+            local_addr = str(row_data.get('LocalAddr', ''))
+            local_port = str(row_data.get('LocalPort', ''))
+            local = f"{local_addr}:{local_port}" if local_port else local_addr
+            
+            foreign_addr = str(row_data.get('ForeignAddr', ''))
+            foreign_port = str(row_data.get('ForeignPort', ''))
+            foreign = f"{foreign_addr}:{foreign_port}" if foreign_port else foreign_addr
+            
             state = str(row_data.get('State', ''))
             
             self.table.setItem(row_idx, 0, QTableWidgetItem(offset))
