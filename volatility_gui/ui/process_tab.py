@@ -13,8 +13,11 @@ class ProcessTab(QWidget):
             "PS Tree": None,
             "Handles": None,
             "DLL List": None,
+            "DLL List": None,
             "Command Line": None
         }
+        self.column_widths = {}
+        self.current_plugin = None
         self.init_ui()
 
     def init_ui(self):
@@ -116,12 +119,15 @@ class ProcessTab(QWidget):
             QMessageBox.information(self, "Export Success", f"Data exported to {file_path}")
         else:
             QMessageBox.critical(self, "Export Error", "Failed to export data.")
-        
-        # Set initial columns
-        self.on_plugin_changed("PS List")
     
     def on_plugin_changed(self, plugin_name):
         """Update table columns when plugin changes and restore cached data."""
+        # Save current column widths before switching
+        if self.current_plugin and self.current_plugin in self.plugin_data_cache:
+            self.column_widths[self.current_plugin] = self.table.horizontalHeader().saveState()
+            
+        self.current_plugin = plugin_name
+        
         column_map = {
             "PS List": ["PID", "PPID", "ImageFileName", "Offset(V)", "Threads", "Handles", "SessionId", "Wow64", "CreateTime", "ExitTime"],
             "PS Scan": ["PID", "PPID", "ImageFileName", "Offset(V)", "Threads", "Handles", "SessionId", "Wow64", "CreateTime", "ExitTime"],
@@ -146,6 +152,15 @@ class ProcessTab(QWidget):
             self._display_data(cached_data)
         else:
             self.status_label.setText("Ready to analyze")
+            
+        # Restore column widths if available
+        if plugin_name in self.column_widths:
+            self.table.horizontalHeader().restoreState(self.column_widths[plugin_name])
+        else:
+            # Reset to default if no saved state
+            # We use a default width of 120 and let the last section stretch
+            for i in range(self.table.columnCount()):
+                self.table.setColumnWidth(i, 120)
     
     def get_selected_plugin(self):
         """Get the currently selected plugin name."""
