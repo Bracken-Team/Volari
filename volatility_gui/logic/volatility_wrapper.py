@@ -104,8 +104,15 @@ class VolatilityWrapper:
             vollog.error(f"Error running plugin {plugin_name}: {e}")
             raise e
 
-    def _process_treegrid(self, treegrid: interfaces.renderers.TreeGrid, progress_callback=None) -> List[Dict[str, Any]]:
-        """Converts a TreeGrid to a list of dictionaries."""
+    def _process_treegrid(self, treegrid: interfaces.renderers.TreeGrid, progress_callback=None, max_rows=50000) -> List[Dict[str, Any]]:
+        """
+        Converts a TreeGrid to a list of dictionaries.
+        
+        Args:
+            treegrid: The TreeGrid to process
+            progress_callback: Optional callback for progress updates
+            max_rows: Maximum number of rows to process (default 50000 to prevent extreme memory issues)
+        """
         results = []
         
         # Get column names
@@ -117,6 +124,13 @@ class VolatilityWrapper:
             if hasattr(treegrid, '_generator') and treegrid._generator is not None:
                 count = 0
                 for level, item in treegrid._generator:
+                    # Stop if we've reached the maximum
+                    if count >= max_rows:
+                        vollog.warning(f"Reached maximum row limit ({max_rows}). Truncating results.")
+                        if progress_callback:
+                            progress_callback(-1, f"Truncated at {max_rows} rows")
+                        break
+                        
                     row = {}
                     for i, value in enumerate(item):
                         try:

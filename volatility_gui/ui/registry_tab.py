@@ -127,18 +127,34 @@ class RegistryTab(QWidget):
         else:
             self.status_label.setText("Ready to analyze")
 
-    def update_table(self, data):
-        """Update table with registry data and cache it."""
+    def update_table(self, data, plugin_name=None):
+        """
+        Update table with registry data and cache it.
+        
+        Args:
+            data: The data to display/cache
+            plugin_name: The name of the plugin this data belongs to.
+                         If None, uses the currently selected plugin.
+        """
         if not data:
-            self.status_label.setText("No registry data found")
+            # Only update status if we are viewing this plugin
+            if plugin_name is None or plugin_name == self.plugin_combo.currentText():
+                self.status_label.setText("No registry data found")
             return
         
-        # Always cache the data for current plugin
-        current_plugin = self.plugin_combo.currentText()
-        self.plugin_data_cache[current_plugin] = data
+        # Determine which plugin this data is for
+        target_plugin = plugin_name if plugin_name else self.plugin_combo.currentText()
         
-        # Display the data
-        self._display_data(data)
+        # Cache the data
+        self.plugin_data_cache[target_plugin] = data
+        
+        # Only update display if this is the currently selected plugin
+        if target_plugin == self.plugin_combo.currentText():
+            self._display_data(data)
+        else:
+            # Just update status
+            count = len(data)
+            self.status_label.setText(f"Background: Loaded {count} items for {target_plugin}")
     
     def _display_data(self, data):
         """Internal method to display data without caching."""
