@@ -1,5 +1,7 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, 
-                             QHeaderView, QPushButton, QHBoxLayout, QLabel, QComboBox, QLineEdit, QMessageBox, QFileDialog)
+                             QHeaderView, QPushButton, QHBoxLayout, QLabel, QComboBox, QLineEdit, QMessageBox, QFileDialog,
+                             QMenu)
+from PyQt6.QtGui import QAction
 from PyQt6.QtCore import Qt
 from volatility_gui.logic.exporter import Exporter
 
@@ -69,7 +71,130 @@ class ProcessTab(QWidget):
         self.table.setSortingEnabled(True)
         self.table.itemSelectionChanged.connect(self.on_selection_changed)
         
+        self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.table.customContextMenuRequested.connect(self.show_context_menu)
+        
         layout.addWidget(self.table)
+
+    def show_context_menu(self, position):
+        """Show context menu for table."""
+        menu = QMenu()
+        
+        scan_action = QAction("🔍 Scan with VirusTotal", self)
+        scan_action.triggered.connect(self.scan_selected_process_vt)
+        menu.addAction(scan_action)
+        
+        dump_action = QAction("💾 Dump Process", self)
+        dump_action.triggered.connect(self.dump_process)
+        menu.addAction(dump_action)
+        
+        menu.exec(self.table.viewport().mapToGlobal(position))
+
+    def scan_selected_process_vt(self):
+        """Scan selected process with VirusTotal."""
+        pid = self.get_selected_pid()
+        if not pid:
+            QMessageBox.warning(self, "Error", "Please select a process to scan.")
+            return
+            
+        # Get main window and wrapper
+        main_window = self.window()
+        if not hasattr(main_window, 'vol_wrapper') or not hasattr(main_window, 'current_dump_path'):
+            QMessageBox.warning(self, "Error", "Volatility wrapper not found")
+            return
+            
+        if not main_window.current_dump_path:
+            QMessageBox.warning(self, "Error", "Please load a memory dump first.")
+            return
+            
+        # Check if VT API key is configured
+        if not hasattr(main_window, 'virustotal_tab') or not main_window.virustotal_tab.scanner.api_key:
+            reply = QMessageBox.question(
+                self,
+                "API Key Required",
+                "VirusTotal API key is not configured. Would you like to configure it now?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            if reply == QMessageBox.StandardButton.Yes:
+                main_window.tabs.setCurrentWidget(main_window.virustotal_tab)
+                main_window.virustotal_tab.open_settings()
+            return
+
+        # Show progress
+        from PyQt6.QtWidgets import QProgressDialog
+        progress = QProgressDialog(f"Dumping and hashing process {pid}...\nThis may take a moment.", "Cancel", 0, 0, self)
+        progress.setWindowTitle("Scanning Process")
+        progress.setWindowModality(Qt.WindowModality.WindowModal)
+        progress.setAutoClose(False)
+        progress.show()
+        
+        # Run in worker thread to avoid freezing
+        def run_scan(*args, **kwargs):
+            try:
+                # 1. Calculate hash
+                file_hash = main_window.vol_wrapper.calculate_process_hash(
+                    main_window.current_dump_path, 
+                    pid
+                )
+                return file_hash
+            except Exception as e:
+                print(f"Error in run_scan: {e}")
+                return None
+            
+        def on_scan_complete(file_hash):
+            progress.close()
+            if not file_hash:
+                QMessageBox.critical(self, "Error", "Failed to calculate process hash.\nCheck logs for details.")
+                return
+                
+            # 2. Scan hash with VT
+            # Switch to VT tab and add hash
+            main_window.tabs.setCurrentWidget(main_window.virustotal_tab)
+            main_window.virustotal_tab.add_hashes_to_table([file_hash], f"Process {pid}")
+            main_window.virustotal_tab.start_scan()
+            
+        # Execute
+        if hasattr(main_window, 'run_worker'):
+            main_window.run_worker(run_scan, on_scan_complete)
+            
+            # Connect cancel button
+            progress.canceled.connect(lambda: None) # We can't easily cancel the thread, but we can close the dialog
+        else:
+            # Fallback if run_worker not available
+            file_hash = run_scan()
+            on_scan_complete(file_hash)
+            
+    def dump_process(self):
+        """Dump the selected process."""
+        pid = self.get_selected_pid()
+        if not pid:
+            QMessageBox.warning(self, "Error", "Please select a process to dump.")
+            return
+            
+        # Get output directory
+        output_dir = QFileDialog.getExistingDirectory(self, "Select Output Directory")
+        if not output_dir:
+            return
+            
+        # Get main window and wrapper
+        main_window = self.window()
+        if not hasattr(main_window, 'vol_wrapper') or not hasattr(main_window, 'current_dump_path'):
+            QMessageBox.warning(self, "Error", "Volatility wrapper not found")
+            return
+            
+        if not main_window.current_dump_path:
+            QMessageBox.warning(self, "Error", "Please load a memory dump first.")
+            return
+            
+        # Use main_window.run_worker to prevent freezing
+        if hasattr(main_window, 'run_worker'):
+            main_window.run_worker(
+                main_window.vol_wrapper.dump_process,
+                lambda res: QMessageBox.information(self, "Success", f"Process dumped to:\n{res}"),
+                main_window.current_dump_path, pid, output_dir
+            )
+        else:
+            QMessageBox.warning(self, "Error", "Worker functionality not available")
         
         # Set initial columns
         self.on_plugin_changed("PS List")

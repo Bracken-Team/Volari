@@ -421,3 +421,100 @@ class VolatilityWrapper:
 
     def get_available_plugins(self):
         return list(framework.list_plugins().keys())
+    def calculate_file_hash(self, file_path: str, offset: str) -> str:
+        """
+        Calculate SHA256 hash of a file from memory dump.
+        
+        Args:
+            file_path: Path to the memory dump file
+            offset: Virtual offset of the FILE_OBJECT
+            
+        Returns:
+            SHA256 hash string or None if failed
+        """
+        import tempfile
+        import shutil
+        import hashlib
+        
+        temp_dir = tempfile.mkdtemp()
+        try:
+            # Dump file to temp dir
+            dumped_dir = self.dump_file(file_path, offset, temp_dir)
+            
+            # Find the dumped file (should be the only one or first one)
+            files = [f for f in os.listdir(dumped_dir) if os.path.isfile(os.path.join(dumped_dir, f))]
+            if not files:
+                return None
+                
+            dumped_file_path = os.path.join(dumped_dir, files[0])
+            
+            # Calculate hash
+            sha256_hash = hashlib.sha256()
+            with open(dumped_file_path, "rb") as f:
+                # Read in chunks to handle large files
+                for byte_block in iter(lambda: f.read(4096), b""):
+                    sha256_hash.update(byte_block)
+                    
+            return sha256_hash.hexdigest()
+            
+        except Exception as e:
+            vollog.error(f"Error calculating file hash: {e}")
+            return None
+        finally:
+            # Cleanup
+            try:
+                shutil.rmtree(temp_dir)
+            except Exception as e:
+                vollog.error(f"Error cleaning up temp dir: {e}")
+    def calculate_process_hash(self, file_path: str, pid: str) -> str:
+        """
+        Calculate SHA256 hash of a process executable from memory dump.
+        
+        Args:
+            file_path: Path to the memory dump file
+            pid: Process ID
+            
+        Returns:
+            SHA256 hash string or None if failed
+        """
+        import tempfile
+        import shutil
+        import hashlib
+        
+        temp_dir = tempfile.mkdtemp()
+        try:
+            # Dump process to temp dir
+            dumped_dir = self.dump_process(file_path, pid, temp_dir)
+            
+            # Find the dumped file (should be the executable)
+            files = [f for f in os.listdir(dumped_dir) if os.path.isfile(os.path.join(dumped_dir, f))]
+            if not files:
+                return None
+            
+            # If multiple files, try to find the .exe or .img
+            target_file = files[0]
+            for f in files:
+                if f.endswith('.exe') or f.endswith('.img'):
+                    target_file = f
+                    break
+                    
+            dumped_file_path = os.path.join(dumped_dir, target_file)
+            
+            # Calculate hash
+            sha256_hash = hashlib.sha256()
+            with open(dumped_file_path, "rb") as f:
+                # Read in chunks to handle large files
+                for byte_block in iter(lambda: f.read(4096), b""):
+                    sha256_hash.update(byte_block)
+                    
+            return sha256_hash.hexdigest()
+            
+        except Exception as e:
+            vollog.error(f"Error calculating process hash: {e}")
+            return None
+        finally:
+            # Cleanup
+            try:
+                shutil.rmtree(temp_dir)
+            except Exception as e:
+                vollog.error(f"Error cleaning up temp dir: {e}")

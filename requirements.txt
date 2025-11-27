@@ -1,3 +1,6 @@
 PyQt6
 pyqtdarktheme
 requests
+vt-py>=0.18.0
+reportlab
+matplotlib

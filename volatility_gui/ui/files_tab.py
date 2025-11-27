@@ -1,5 +1,7 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, 
-                             QHeaderView, QPushButton, QHBoxLayout, QLabel, QFileDialog, QMessageBox, QLineEdit)
+                             QHeaderView, QPushButton, QHBoxLayout, QLabel, QFileDialog, QMessageBox, QLineEdit,
+                             QMenu)
+from PyQt6.QtGui import QAction
 from PyQt6.QtCore import Qt
 import os
 from volatility_gui.logic.exporter import Exporter
@@ -52,7 +54,98 @@ class FilesTab(QWidget):
         self.table.setSortingEnabled(True)
         self.table.itemSelectionChanged.connect(self.on_selection_changed)
         
+        self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.table.customContextMenuRequested.connect(self.show_context_menu)
+        
         layout.addWidget(self.table)
+
+    def show_context_menu(self, position):
+        """Show context menu for table."""
+        menu = QMenu()
+        
+        scan_action = QAction("🔍 Scan with VirusTotal", self)
+        scan_action.triggered.connect(self.scan_selected_file_vt)
+        menu.addAction(scan_action)
+        
+        dump_action = QAction("💾 Dump File", self)
+        dump_action.triggered.connect(self.dump_file)
+        menu.addAction(dump_action)
+        
+        menu.exec(self.table.viewport().mapToGlobal(position))
+
+    def scan_selected_file_vt(self):
+        """Scan selected file with VirusTotal."""
+        offset = self.get_selected_offset()
+        if not offset:
+            QMessageBox.warning(self, "Error", "Please select a file to scan.")
+            return
+            
+        # Get main window and wrapper
+        main_window = self.window()
+        if not hasattr(main_window, 'vol_wrapper') or not hasattr(main_window, 'current_dump_path'):
+            QMessageBox.warning(self, "Error", "Volatility wrapper not found")
+            return
+            
+        if not main_window.current_dump_path:
+            QMessageBox.warning(self, "Error", "Please load a memory dump first.")
+            return
+            
+        # Check if VT API key is configured
+        if not hasattr(main_window, 'virustotal_tab') or not main_window.virustotal_tab.scanner.api_key:
+            reply = QMessageBox.question(
+                self,
+                "API Key Required",
+                "VirusTotal API key is not configured. Would you like to configure it now?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+            )
+            if reply == QMessageBox.StandardButton.Yes:
+                main_window.tabs.setCurrentWidget(main_window.virustotal_tab)
+                main_window.virustotal_tab.open_settings()
+            return
+
+        # Show progress
+        from PyQt6.QtWidgets import QProgressDialog
+        progress = QProgressDialog("Calculating file hash...\nThis may take a moment.", "Cancel", 0, 0, self)
+        progress.setWindowTitle("Scanning File")
+        progress.setWindowModality(Qt.WindowModality.WindowModal)
+        progress.setAutoClose(False)
+        progress.show()
+        
+        # Run in worker thread to avoid freezing
+        def run_scan(*args, **kwargs):
+            try:
+                # 1. Calculate hash
+                file_hash = main_window.vol_wrapper.calculate_file_hash(
+                    main_window.current_dump_path, 
+                    offset
+                )
+                return file_hash
+            except Exception as e:
+                print(f"Error in run_scan: {e}")
+                return None
+            
+        def on_scan_complete(file_hash):
+            progress.close()
+            if not file_hash:
+                QMessageBox.critical(self, "Error", "Failed to calculate file hash.\nCheck logs for details.")
+                return
+                
+            # 2. Scan hash with VT
+            # Switch to VT tab and add hash
+            main_window.tabs.setCurrentWidget(main_window.virustotal_tab)
+            main_window.virustotal_tab.add_hashes_to_table([file_hash], "File Scan")
+            main_window.virustotal_tab.start_scan()
+            
+        # Execute
+        if hasattr(main_window, 'run_worker'):
+            main_window.run_worker(run_scan, on_scan_complete)
+            
+            # Connect cancel button
+            progress.canceled.connect(lambda: None)
+        else:
+            # Fallback if run_worker not available (should be)
+            file_hash = run_scan()
+            on_scan_complete(file_hash)
 
     # ... (existing methods)
 
@@ -132,28 +225,7 @@ class FilesTab(QWidget):
                 return offset_item.text()
         return None
 
-    def update_table(self, data):
-        """Update table with file scan data."""
-        self.table.setRowCount(0)
-        
-        if not data:
-            self.status_label.setText("No files found")
-            return
-        
-        # Set correct columns for filescan
-        self.table.setColumnCount(2)
-        self.table.setHorizontalHeaderLabels(["Offset", "Name"])
-        
-        self.table.setRowCount(len(data))
-        
-        for row_idx, row_data in enumerate(data):
-            offset = str(row_data.get('Offset', ''))
-            name = str(row_data.get('Name', ''))
-            
-            self.table.setItem(row_idx, 0, QTableWidgetItem(offset))
-            self.table.setItem(row_idx, 1, QTableWidgetItem(name))
-            
-        self.status_label.setText(f"Loaded {len(data)} files")
+
 
     def dump_file(self):
         """Dump the selected file."""
@@ -198,15 +270,3 @@ class FilesTab(QWidget):
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to dump file: {str(e)}")
             self.status_label.setText("Error dumping file")
-
-    def filter_table(self, text):
-        """Filter table rows based on search text."""
-        search_text = text.lower()
-        for row in range(self.table.rowCount()):
-            match = False
-            for col in range(self.table.columnCount()):
-                item = self.table.item(row, col)
-                if item and search_text in item.text().lower():
-                    match = True
-                    break
-            self.table.setRowHidden(row, not match)

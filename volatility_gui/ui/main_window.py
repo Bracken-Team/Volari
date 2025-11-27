@@ -14,6 +14,7 @@ from volatility_gui.ui.files_tab import FilesTab
 from volatility_gui.ui.malware_tab import MalwareTab
 from volatility_gui.ui.timeline_tab import TimelineTab
 from volatility_gui.ui.ioc_tab import IOCTab
+from volatility_gui.ui.virustotal_tab import VirusTotalTab
 from volatility_gui.logic.volatility_wrapper import VolatilityWrapper
 from volatility_gui.logic.worker import PluginWorker
 from volatility_gui.ui.log_viewer import LogViewer
@@ -77,6 +78,11 @@ class MainWindow(QMainWindow):
         self.queue_viewer = QueueViewer(self.investigation_queue, self)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.queue_viewer)
         self.queue_viewer.hide()
+        
+        # Connect queue signals for global progress
+        self.investigation_queue.task_started.connect(self.on_queue_task_started)
+        self.investigation_queue.task_progress.connect(lambda tid, pct, msg: self.update_progress(pct, msg))
+        self.investigation_queue.queue_completed.connect(self.on_queue_completed)
 
     def init_tabs(self):
         # OS Info Tab
@@ -133,6 +139,10 @@ class MainWindow(QMainWindow):
         self.ioc_tab = IOCTab()
         self.tabs.addTab(self.ioc_tab, "IOC Checker")
         self.ioc_tab.scan_btn.clicked.connect(self.run_ioc_scan)
+        
+        # VirusTotal Tab
+        self.virustotal_tab = VirusTotalTab()
+        self.tabs.addTab(self.virustotal_tab, "VirusTotal")
 
     def init_process_tab(self):
         layout = QVBoxLayout(self.process_tab)
@@ -236,6 +246,7 @@ class MainWindow(QMainWindow):
         self.statusBar().showMessage(f"Added {task_name} to queue")
         
         # Ensure queue viewer is updated (it listens to signals)
+        self.queue_viewer.show()
         
         # Start processing if not already running
         if not self.investigation_worker:
@@ -258,15 +269,21 @@ class MainWindow(QMainWindow):
         self.worker.start()
 
     def on_worker_finished(self, result, callback):
-        self.progress_bar.setVisible(False)
-        self.statusBar().showMessage("Ready")
+        # Only hide if queue is not running
+        if not self.investigation_queue.active_task_ids:
+            self.progress_bar.setVisible(False)
+            self.statusBar().showMessage("Ready")
+            
         if callback:
             callback(result)
         self.worker = None
 
     def on_worker_error(self, error_msg):
-        self.progress_bar.setVisible(False)
-        self.statusBar().showMessage("Error")
+        # Only hide if queue is not running
+        if not self.investigation_queue.active_task_ids:
+            self.progress_bar.setVisible(False)
+            self.statusBar().showMessage("Error")
+            
         QMessageBox.critical(self, "Error", error_msg)
         self.worker = None
 
@@ -277,6 +294,17 @@ class MainWindow(QMainWindow):
             self.progress_bar.setRange(0, 100)
             self.progress_bar.setValue(percentage)
         self.statusBar().showMessage(message)
+
+    def on_queue_task_started(self, task_id):
+        """Handle queue task started."""
+        self.progress_bar.setVisible(True)
+        self.progress_bar.setValue(0)
+        self.statusBar().showMessage("Processing queue...")
+        
+    def on_queue_completed(self):
+        """Handle queue completion."""
+        self.progress_bar.setVisible(False)
+        self.statusBar().showMessage("Queue processing complete")
 
     def dump_process(self):
         """Dump the selected process to a file."""
