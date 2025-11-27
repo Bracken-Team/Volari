@@ -1,6 +1,17 @@
-PyQt6
-pyqtdarktheme
-requests
+# GUI Dependencies
+PyQt6>=6.0.0
+matplotlib>=3.0.0
+reportlab>=3.0.0
 vt-py>=0.18.0
-reportlab
-matplotlib
+requests>=2.0.0
+
+# Volatility 3 Core Dependencies
+pefile>=2024.8.26
+yara-python>=4.5.1,<5
+capstone>=5.0.3,<6
+pycryptodome>=3.21.0,<4
+pillow>=10.0.0,<11.0.0
+jsonschema>=4.23.0,<5
+
+# Install local volatility3 package
+-e .
