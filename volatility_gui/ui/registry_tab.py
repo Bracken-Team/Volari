@@ -177,18 +177,27 @@ class RegistryTab(QWidget):
         
         for row_idx, row_data in enumerate(data):
             if plugin_name == "Hive Scan":
-                self.table.setItem(row_idx, 0, QTableWidgetItem(str(row_data.get('Offset', ''))))
+                offset = str(row_data.get('Offset', ''))
+                item = QTableWidgetItem(offset)
+                item.setToolTip(offset)
+                self.table.setItem(row_idx, 0, item)
             elif plugin_name == "Hive List":
-                self.table.setItem(row_idx, 0, QTableWidgetItem(str(row_data.get('Offset', ''))))
-                self.table.setItem(row_idx, 1, QTableWidgetItem(str(row_data.get('FileFullPath', ''))))
+                offset = str(row_data.get('Offset', ''))
+                item = QTableWidgetItem(offset)
+                item.setToolTip(offset)
+                self.table.setItem(row_idx, 0, item)
+                
+                path = str(row_data.get('FileFullPath', ''))
+                item = QTableWidgetItem(path)
+                item.setToolTip(path)
+                self.table.setItem(row_idx, 1, item)
             elif plugin_name == "Print Key":
-                self.table.setItem(row_idx, 0, QTableWidgetItem(str(row_data.get('Last Write Time', ''))))
-                self.table.setItem(row_idx, 1, QTableWidgetItem(str(row_data.get('Hive Offset', ''))))
-                self.table.setItem(row_idx, 2, QTableWidgetItem(str(row_data.get('Type', ''))))
-                self.table.setItem(row_idx, 3, QTableWidgetItem(str(row_data.get('Key', ''))))
-                self.table.setItem(row_idx, 4, QTableWidgetItem(str(row_data.get('Name', ''))))
-                self.table.setItem(row_idx, 5, QTableWidgetItem(str(row_data.get('Data', ''))))
-                self.table.setItem(row_idx, 6, QTableWidgetItem(str(row_data.get('Volatile', ''))))
+                fields = ["Last Write Time", "Hive Offset", "Type", "Key", "Name", "Data", "Volatile"]
+                for i, field in enumerate(fields):
+                    val = str(row_data.get(field, ''))
+                    item = QTableWidgetItem(val)
+                    item.setToolTip(val)
+                    self.table.setItem(row_idx, i, item)
             
         self.status_label.setText(f"Loaded {len(data)} registry entries")
 

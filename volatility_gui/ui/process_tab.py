@@ -378,14 +378,14 @@ class ProcessTab(QWidget):
         
         for row_idx, row_data in enumerate(data):
             for col_idx, col_name in enumerate(columns):
-                # Handle special cases for column name variations
-                value = ""
-                if col_name == "Offset(V)":
-                    value = row_data.get("Offset(V)", row_data.get("Offset", ""))
-                else:
-                    value = row_data.get(col_name, "")
+                # Ensure we handle different data structures (dict or object)
+                val = row_data.get(col_name, "") if isinstance(row_data, dict) else getattr(row_data, col_name, "")
                 
-                self.table.setItem(row_idx, col_idx, QTableWidgetItem(str(value)))
+                item = QTableWidgetItem(str(val))
+                # Add tooltip for long content
+                item.setToolTip(str(val))
+                
+                self.table.setItem(row_idx, col_idx, item)
         
         self.status_label.setText(f"Loaded {len(data)} items")
 

@@ -74,11 +74,25 @@ class NetworkTab(QWidget):
             
             state = str(row_data.get('State', ''))
             
-            self.table.setItem(row_idx, 0, QTableWidgetItem(offset))
-            self.table.setItem(row_idx, 1, QTableWidgetItem(proto))
-            self.table.setItem(row_idx, 2, QTableWidgetItem(local))
-            self.table.setItem(row_idx, 3, QTableWidgetItem(foreign))
-            self.table.setItem(row_idx, 4, QTableWidgetItem(state))
+            offset_item = QTableWidgetItem(offset)
+            offset_item.setToolTip(offset)
+            self.table.setItem(row_idx, 0, offset_item)
+            
+            proto_item = QTableWidgetItem(proto)
+            proto_item.setToolTip(proto)
+            self.table.setItem(row_idx, 1, proto_item)
+            
+            local_item = QTableWidgetItem(local)
+            local_item.setToolTip(local)
+            self.table.setItem(row_idx, 2, local_item)
+            
+            foreign_item = QTableWidgetItem(foreign)
+            foreign_item.setToolTip(foreign)
+            self.table.setItem(row_idx, 3, foreign_item)
+            
+            state_item = QTableWidgetItem(state)
+            state_item.setToolTip(state)
+            self.table.setItem(row_idx, 4, state_item)
             
         self.status_label.setText(f"Loaded {len(data)} network connections")
 

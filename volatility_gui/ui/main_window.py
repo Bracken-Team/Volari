@@ -22,12 +22,19 @@ from volatility_gui.logic.investigation_queue import InvestigationQueue, Investi
 from volatility_gui.ui.queue_viewer import QueueViewer
 from volatility_gui.ui.report_config_dialog import ReportConfigDialog
 from volatility_gui.logic.pdf_generator import PDFReportGenerator
+from volatility_gui.logic.settings_manager import SettingsManager
+
+from volatility_gui.ui.settings_dialog import SettingsDialog
+from volatility_gui.logic.gc_worker import GarbageCollectionWorker
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Volatility 3 GUI")
         self.resize(1200, 800)
+        
+        # Initialize Settings
+        self.settings = SettingsManager()
         
         # Initialize Wrapper
         self.vol_wrapper = VolatilityWrapper()
@@ -40,7 +47,8 @@ class MainWindow(QMainWindow):
         self.investigation_worker = None  # Store current investigation worker
         self.active_workers = []  # List of active workers for concurrent execution
         self.worker_map = {}  # Map task_id to worker for pause/stop operations
-        self.MAX_CONCURRENT_TASKS = 1  # Reverted to 1 due to performance issues with threading
+        # Load max concurrent tasks from settings
+        self.MAX_CONCURRENT_TASKS = self.settings.get_max_concurrent_tasks()
         
         # Central Widget
         central_widget = QWidget()
@@ -210,6 +218,7 @@ class MainWindow(QMainWindow):
     def on_load_finished(self, result):
         self.statusBar().showMessage(f"Loaded: {self.current_dump_path}")
         self.setWindowTitle(f"Volatility 3 GUI - {os.path.basename(self.current_dump_path)}")
+        QMessageBox.information(self, "File Loaded", f"Successfully loaded memory dump:\n{os.path.basename(self.current_dump_path)}")
 
     def toggle_logs(self, checked):
         if checked:
@@ -337,17 +346,21 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Error", "Please load a memory dump first.")
             return
             
+        # Get plugin list from settings
+        plugin_list = self.settings.get_auto_investigation_plugins()
+        
+        # Build plugin display names for confirmation dialog
+        plugin_names = []
+        for plugin in plugin_list:
+            name = plugin.split('.')[-1]  # Get last part (e.g., "PsList" from "windows.pslist.PsList")
+            plugin_names.append(f"• {name}")
+        
         # Ask user for confirmation
         reply = QMessageBox.question(
             self, 
             "Auto Investigation",
-            "Auto Investigation will run the following plugins:\n\n"
-            "• System Info\n"
-            "• Process List\n"
-            "• Network Scan\n"
-            "• File Scan\n"
-            "• Handles\n"
-            "• Registry Hive List\n\n"
+            f"Auto Investigation will run the following plugins:\n\n" +
+            "\n".join(plugin_names) + "\n\n" +
             "This may take several minutes. Continue?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
@@ -362,14 +375,21 @@ class MainWindow(QMainWindow):
         import uuid
         import gc
         
-        tasks = [
-            ("System Info", "windows.info.Info", self.osinfo_tab.update_display),
-            ("Process List", "windows.pslist.PsList", lambda data: self.process_tab.update_table(data, plugin_name="PS List")),
-            ("Network Scan", "windows.netscan.NetScan", self.network_tab.update_table),
-            ("File Scan", "windows.filescan.FileScan", self.files_tab.update_table),
-            ("Handles", "windows.handles.Handles", lambda data: self.process_tab.update_table(data, plugin_name="Handles")),
-            ("Registry Hive List", "windows.registry.hivelist.HiveList", lambda data: self.registry_tab.update_table(data, plugin_name="Hive List")),
-        ]
+        # Map plugins to their callbacks
+        plugin_callbacks = {
+            "windows.info.Info": self.osinfo_tab.update_display,
+            "windows.pslist.PsList": lambda data: self.process_tab.update_table(data, plugin_name="PS List"),
+            "windows.netscan.NetScan": self.network_tab.update_table,
+            "windows.filescan.FileScan": self.files_tab.update_table,
+            "windows.handles.Handles": lambda data: self.process_tab.update_table(data, plugin_name="Handles"),
+            "windows.registry.hivelist.HiveList": lambda data: self.registry_tab.update_table(data, plugin_name="Hive List"),
+        }
+        
+        tasks = []
+        for plugin_name in plugin_list:
+            task_name = plugin_name.split('.')[-1]  # Extract simple name
+            callback = plugin_callbacks.get(plugin_name, lambda data: None)  # Default to no-op
+            tasks.append((task_name, plugin_name, callback))
         
         for task_name, plugin_name, callback in tasks:
             task_id = str(uuid.uuid4())
@@ -389,6 +409,14 @@ class MainWindow(QMainWindow):
         # Start processing queue
         self.process_next_task()
         
+    def run_gc_and_continue(self):
+        """Run garbage collection in background then continue processing."""
+        self.gc_worker = GarbageCollectionWorker()
+        self.gc_worker.finished.connect(self.process_next_task)
+        # Using a lambda to cleanup the worker ref
+        self.gc_worker.finished.connect(lambda: setattr(self, 'gc_worker', None))
+        self.gc_worker.start()
+
     def process_next_task(self):
         """Process the next task in the investigation queue."""
         # Check if we can start more tasks
@@ -440,12 +468,9 @@ class MainWindow(QMainWindow):
                 if t.task_id in self.worker_map:
                     del self.worker_map[t.task_id]
                 
-                # Force garbage collection to free memory between tasks
-                import gc
-                gc.collect()
-                
-                # Process next task
-                self.process_next_task()
+                # Process next task (with intermediate GC if needed)
+                # We'll run GC in background to prevent freezing
+                self.run_gc_and_continue()
                 
             def on_task_error(error, t=task, w=worker):
                 self.investigation_queue.mark_failed(t.task_id, str(error))
@@ -649,7 +674,28 @@ class MainWindow(QMainWindow):
         self.tabs.setCurrentWidget(self.timeline_tab)
     
     def open_settings(self):
-        QMessageBox.information(self, "Settings", "Settings dialog not implemented yet.")
+        """Open comprehensive settings dialog."""
+        # Get VT scanner if available
+        vt_scanner = None
+        if hasattr(self, 'virustotal_tab') and hasattr(self.virustotal_tab, 'scanner'):
+            vt_scanner = self.virustotal_tab.scanner
+            
+        dialog = SettingsDialog(self.settings, vt_scanner, self)
+        if dialog.exec():
+            # Settings were saved, apply them
+            self.apply_settings()
+            QMessageBox.information(self, "Settings Saved", "Settings have been saved successfully.\n\nSome changes may require a restart to take effect.")
+            
+    def apply_settings(self):
+        """Apply settings to various components."""
+        # Update max concurrent tasks
+        self.MAX_CONCURRENT_TASKS = self.settings.get_max_concurrent_tasks()
+        
+        # Update VirusTotal scanner API key
+        if hasattr(self, 'virustotal_tab') and hasattr(self.virustotal_tab, 'scanner'):
+            api_key = self.settings.get_vt_api_key()
+            if api_key:
+                self.virustotal_tab.scanner.set_api_key(api_key)
 
     def run_ioc_scan(self):
         """Run IOC scan against all loaded data."""

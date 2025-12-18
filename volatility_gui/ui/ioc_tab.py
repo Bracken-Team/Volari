@@ -1,6 +1,6 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, 
                              QLabel, QTextEdit, QTableWidget, QTableWidgetItem, 
-                             QHeaderView, QGroupBox, QFileDialog, QMessageBox, QComboBox, QLineEdit)
+                             QHeaderView, QGroupBox, QFileDialog, QMessageBox, QComboBox, QLineEdit, QDialog)
 from PyQt6.QtCore import Qt
 from volatility_gui.logic.ioc_scanner import IOCScanner
 from volatility_gui.logic.exporter import Exporter
@@ -40,6 +40,10 @@ class IOCTab(QWidget):
         self.clear_btn = QPushButton("Clear IOCs")
         self.clear_btn.clicked.connect(self.clear_iocs)
         btn_layout.addWidget(self.clear_btn)
+        
+        self.view_btn = QPushButton("View Keywords")
+        self.view_btn.clicked.connect(self.view_keywords)
+        btn_layout.addWidget(self.view_btn)
         
         btn_layout.addStretch()
         
@@ -129,6 +133,38 @@ class IOCTab(QWidget):
         details = [f"{k}: {len(v)}" for k, v in self.scanner.iocs.items() if v]
         detail_str = f" ({', '.join(details)})" if details else ""
         self.ioc_count_label.setText(f"Active IOCs: {total}{detail_str}")
+
+    def view_keywords(self):
+        """View all active IOC keywords."""
+        if not any(self.scanner.iocs.values()):
+            QMessageBox.information(self, "IOC Keywords", "No IOCs added yet.")
+            return
+
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Active IOC Keywords")
+        dialog.resize(500, 400)
+        
+        layout = QVBoxLayout(dialog)
+        
+        text_edit = QTextEdit()
+        text_edit.setReadOnly(True)
+        
+        content = ""
+        for ioc_type, iocs in self.scanner.iocs.items():
+            if iocs:
+                content += f"=== {ioc_type} ===\n"
+                for ioc in sorted(iocs):
+                    content += f"{ioc}\n"
+                content += "\n"
+        
+        text_edit.setPlainText(content)
+        layout.addWidget(text_edit)
+        
+        close_btn = QPushButton("Close")
+        close_btn.clicked.connect(dialog.accept)
+        layout.addWidget(close_btn)
+        
+        dialog.exec()
 
     def filter_table(self, text):
         """Filter table rows based on search text."""

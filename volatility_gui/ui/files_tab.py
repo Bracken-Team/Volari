@@ -164,8 +164,13 @@ class FilesTab(QWidget):
             offset = str(row_data.get('Offset', ''))
             name = str(row_data.get('Name', ''))
             
-            self.table.setItem(row_idx, 0, QTableWidgetItem(offset))
-            self.table.setItem(row_idx, 1, QTableWidgetItem(name))
+            offset_item = QTableWidgetItem(offset)
+            offset_item.setToolTip(offset)
+            self.table.setItem(row_idx, 0, offset_item)
+            
+            name_item = QTableWidgetItem(name)
+            name_item.setToolTip(name)
+            self.table.setItem(row_idx, 1, name_item)
             
         self.status_label.setText(f"Loaded {len(data)} files")
 
