@@ -158,19 +158,27 @@ class FilesTab(QWidget):
             self.status_label.setText("No files found")
             return
         
-        self.table.setRowCount(len(data))
+        # Performance optimization: Disable sorting and updates during bulk population
+        self.table.setSortingEnabled(False)
+        self.table.setUpdatesEnabled(False)
         
-        for row_idx, row_data in enumerate(data):
-            offset = str(row_data.get('Offset', ''))
-            name = str(row_data.get('Name', ''))
+        try:
+            self.table.setRowCount(len(data))
             
-            offset_item = QTableWidgetItem(offset)
-            offset_item.setToolTip(offset)
-            self.table.setItem(row_idx, 0, offset_item)
-            
-            name_item = QTableWidgetItem(name)
-            name_item.setToolTip(name)
-            self.table.setItem(row_idx, 1, name_item)
+            for row_idx, row_data in enumerate(data):
+                offset = str(row_data.get('Offset', ''))
+                name = str(row_data.get('Name', ''))
+                
+                offset_item = QTableWidgetItem(offset)
+                offset_item.setToolTip(offset)
+                self.table.setItem(row_idx, 0, offset_item)
+                
+                name_item = QTableWidgetItem(name)
+                name_item.setToolTip(name)
+                self.table.setItem(row_idx, 1, name_item)
+        finally:
+            self.table.setUpdatesEnabled(True)
+            self.table.setSortingEnabled(True)
             
         self.status_label.setText(f"Loaded {len(data)} files")
 

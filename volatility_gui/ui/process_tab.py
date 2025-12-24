@@ -372,20 +372,28 @@ class ProcessTab(QWidget):
         self.table.setColumnCount(len(columns))
         self.table.setHorizontalHeaderLabels(columns)
         
-        # Then set row count and populate data
-        self.table.setRowCount(0)
-        self.table.setRowCount(len(data))
+        # Performance optimization: Disable sorting and updates during bulk population
+        self.table.setSortingEnabled(False)
+        self.table.setUpdatesEnabled(False)
         
-        for row_idx, row_data in enumerate(data):
-            for col_idx, col_name in enumerate(columns):
-                # Ensure we handle different data structures (dict or object)
-                val = row_data.get(col_name, "") if isinstance(row_data, dict) else getattr(row_data, col_name, "")
-                
-                item = QTableWidgetItem(str(val))
-                # Add tooltip for long content
-                item.setToolTip(str(val))
-                
-                self.table.setItem(row_idx, col_idx, item)
+        try:
+            # Then set row count and populate data
+            self.table.setRowCount(0)
+            self.table.setRowCount(len(data))
+            
+            for row_idx, row_data in enumerate(data):
+                for col_idx, col_name in enumerate(columns):
+                    # Ensure we handle different data structures (dict or object)
+                    val = row_data.get(col_name, "") if isinstance(row_data, dict) else getattr(row_data, col_name, "")
+                    
+                    item = QTableWidgetItem(str(val))
+                    # Add tooltip for long content
+                    item.setToolTip(str(val))
+                    
+                    self.table.setItem(row_idx, col_idx, item)
+        finally:
+            self.table.setUpdatesEnabled(True)
+            self.table.setSortingEnabled(True)
         
         self.status_label.setText(f"Loaded {len(data)} items")
 

@@ -4,6 +4,7 @@ matplotlib>=3.0.0
 reportlab>=3.0.0
 vt-py>=0.18.0
 requests>=2.0.0
+pyqtdarktheme>=2.1.0
 
 # Volatility 3 Core Dependencies
 pefile>=2024.8.26

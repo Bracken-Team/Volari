@@ -173,31 +173,39 @@ class RegistryTab(QWidget):
             self.table.setColumnCount(7)
             self.table.setHorizontalHeaderLabels(["Last Write Time", "Hive Offset", "Type", "Key", "Name", "Data", "Volatile"])
         
-        self.table.setRowCount(len(data))
+        # Performance optimization: Disable sorting and updates during bulk population
+        self.table.setSortingEnabled(False)
+        self.table.setUpdatesEnabled(False)
         
-        for row_idx, row_data in enumerate(data):
-            if plugin_name == "Hive Scan":
-                offset = str(row_data.get('Offset', ''))
-                item = QTableWidgetItem(offset)
-                item.setToolTip(offset)
-                self.table.setItem(row_idx, 0, item)
-            elif plugin_name == "Hive List":
-                offset = str(row_data.get('Offset', ''))
-                item = QTableWidgetItem(offset)
-                item.setToolTip(offset)
-                self.table.setItem(row_idx, 0, item)
-                
-                path = str(row_data.get('FileFullPath', ''))
-                item = QTableWidgetItem(path)
-                item.setToolTip(path)
-                self.table.setItem(row_idx, 1, item)
-            elif plugin_name == "Print Key":
-                fields = ["Last Write Time", "Hive Offset", "Type", "Key", "Name", "Data", "Volatile"]
-                for i, field in enumerate(fields):
-                    val = str(row_data.get(field, ''))
-                    item = QTableWidgetItem(val)
-                    item.setToolTip(val)
-                    self.table.setItem(row_idx, i, item)
+        try:
+            self.table.setRowCount(len(data))
+            
+            for row_idx, row_data in enumerate(data):
+                if plugin_name == "Hive Scan":
+                    offset = str(row_data.get('Offset', ''))
+                    item = QTableWidgetItem(offset)
+                    item.setToolTip(offset)
+                    self.table.setItem(row_idx, 0, item)
+                elif plugin_name == "Hive List":
+                    offset = str(row_data.get('Offset', ''))
+                    item = QTableWidgetItem(offset)
+                    item.setToolTip(offset)
+                    self.table.setItem(row_idx, 0, item)
+                    
+                    path = str(row_data.get('FileFullPath', ''))
+                    item = QTableWidgetItem(path)
+                    item.setToolTip(path)
+                    self.table.setItem(row_idx, 1, item)
+                elif plugin_name == "Print Key":
+                    fields = ["Last Write Time", "Hive Offset", "Type", "Key", "Name", "Data", "Volatile"]
+                    for i, field in enumerate(fields):
+                        val = str(row_data.get(field, ''))
+                        item = QTableWidgetItem(val)
+                        item.setToolTip(val)
+                        self.table.setItem(row_idx, i, item)
+        finally:
+            self.table.setUpdatesEnabled(True)
+            self.table.setSortingEnabled(True)
             
         self.status_label.setText(f"Loaded {len(data)} registry entries")
 

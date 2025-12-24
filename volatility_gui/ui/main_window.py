@@ -23,9 +23,9 @@ from volatility_gui.ui.queue_viewer import QueueViewer
 from volatility_gui.ui.report_config_dialog import ReportConfigDialog
 from volatility_gui.logic.pdf_generator import PDFReportGenerator
 from volatility_gui.logic.settings_manager import SettingsManager
-
 from volatility_gui.ui.settings_dialog import SettingsDialog
 from volatility_gui.logic.gc_worker import GarbageCollectionWorker
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -468,8 +468,8 @@ class MainWindow(QMainWindow):
                 if t.task_id in self.worker_map:
                     del self.worker_map[t.task_id]
                 
-                # Process next task (with intermediate GC if needed)
-                # We'll run GC in background to prevent freezing
+                # Process next task (with intermediate GC for stability)
+                # Running GC in background prevents memory exhaustion while keeping UI responsive
                 self.run_gc_and_continue()
                 
             def on_task_error(error, t=task, w=worker):
