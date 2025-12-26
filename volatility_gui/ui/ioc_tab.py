@@ -1,9 +1,11 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton, 
                              QLabel, QTextEdit, QTableWidget, QTableWidgetItem, 
-                             QHeaderView, QGroupBox, QFileDialog, QMessageBox, QComboBox, QLineEdit, QDialog)
+                             QHeaderView, QGroupBox, QFileDialog, QMessageBox, QComboBox, QLineEdit, QDialog,
+                             QApplication, QAbstractItemView)
 from PyQt6.QtCore import Qt
 from volatility_gui.logic.ioc_scanner import IOCScanner
 from volatility_gui.logic.exporter import Exporter
+from volatility_gui.ui.tab_utils import setup_table_copy_on_double_click
 
 class IOCTab(QWidget):
     """Tab for IOC scanning and management."""
@@ -85,6 +87,10 @@ class IOCTab(QWidget):
         self.table.horizontalHeader().setStretchLastSection(True)
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setSortingEnabled(True)
+        
+        # Make table non-editable with copy-on-double-click
+        setup_table_copy_on_double_click(self.table)
+        
         layout.addWidget(self.table)
         
         self.status_label = QLabel("Ready to scan")
@@ -226,12 +232,16 @@ class IOCTab(QWidget):
                 "Field": self.table.item(row, 4).text()
             }
             data.append(item)
-            
+        
+        success, message = False, "Unsupported format"
         if file_path.endswith('.json'):
-            Exporter.export_to_json(data, file_path)
+            success, message = Exporter.export_to_json(data, file_path)
         elif file_path.endswith('.csv'):
-            Exporter.export_to_csv(data, file_path)
+            success, message = Exporter.export_to_csv(data, file_path)
         elif file_path.endswith('.html'):
-            Exporter.export_to_html(data, file_path, "IOC Scan Results")
-            
-        QMessageBox.information(self, "Success", f"Results exported to {file_path}")
+            success, message = Exporter.export_to_html(data, file_path, "IOC Scan Results")
+        
+        if success:
+            QMessageBox.information(self, "Success", message)
+        else:
+            QMessageBox.critical(self, "Export Error", message)

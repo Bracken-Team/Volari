@@ -52,7 +52,7 @@ class VTSettingsDialog(QDialog):
         api_layout.addRow("", show_hide_layout)
         
         # Test button
-        self.test_btn = QPushButton("🔍 Test API Key")
+        self.test_btn = QPushButton("Test API Key")
         self.test_btn.clicked.connect(self.test_api_key)
         api_layout.addRow("", self.test_btn)
         
@@ -118,10 +118,10 @@ class VTSettingsDialog(QDialog):
         """Toggle API key visibility."""
         if self.api_key_input.echoMode() == QLineEdit.EchoMode.Password:
             self.api_key_input.setEchoMode(QLineEdit.EchoMode.Normal)
-            self.show_key_btn.setText("🔒 Hide")
+            self.show_key_btn.setText("Hide")
         else:
             self.api_key_input.setEchoMode(QLineEdit.EchoMode.Password)
-            self.show_key_btn.setText("👁 Show")
+            self.show_key_btn.setText("Show")
             
     def test_api_key(self):
         """Test the API key."""
@@ -143,7 +143,7 @@ class VTSettingsDialog(QDialog):
     def _do_test(self, api_key):
         """Actually perform the test."""
         if self.scanner.set_api_key(api_key):
-            self.status_label.setText("✅ API key is valid!")
+            self.status_label.setText("API key is valid!")
             self.status_label.setStyleSheet("color: #388E3C;")
             QMessageBox.information(
                 self,

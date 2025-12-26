@@ -1,10 +1,13 @@
 import os
+import sys
 import threading
 import uuid
 from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QTabWidget, 
-                             QLabel, QFileDialog, QToolBar, QStatusBar, QMessageBox, QProgressBar, QDialog)
+                             QLabel, QFileDialog, QToolBar, QStatusBar, QMessageBox, QProgressBar, QDialog, QMenuBar, QMenu)
 from PyQt6.QtGui import QAction, QIcon
 from PyQt6.QtCore import Qt, pyqtSignal, QObject
+
+from volatility_gui.modern_icons import ModernIcons
 
 from volatility_gui.ui.process_tab import ProcessTab
 from volatility_gui.ui.network_tab import NetworkTab
@@ -30,7 +33,7 @@ from volatility_gui.logic.gc_worker import GarbageCollectionWorker
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("Volatility 3 GUI")
+        self.setWindowTitle("Volari")
         self.resize(1200, 800)
         
         # Initialize Settings
@@ -95,14 +98,14 @@ class MainWindow(QMainWindow):
     def init_tabs(self):
         # OS Info Tab
         self.osinfo_tab = OSInfoTab()
-        self.tabs.addTab(self.osinfo_tab, "OS Info")
+        self.tabs.addTab(self.osinfo_tab, ModernIcons.os_info(), "OS Info")
         self.osinfo_tab.refresh_btn.clicked.connect(
             lambda: self.run_plugin("windows.info.Info", self.osinfo_tab.update_display)
         )
         
         # Processes Tab
         self.process_tab = ProcessTab()
-        self.tabs.addTab(self.process_tab, "Processes")
+        self.tabs.addTab(self.process_tab, ModernIcons.process(), "Processes")
         # Connect refresh button - use selected plugin
         self.process_tab.refresh_btn.clicked.connect(
             lambda: self.run_plugin(self.process_tab.get_selected_plugin(), self.process_tab.update_table)
@@ -112,45 +115,45 @@ class MainWindow(QMainWindow):
         
         # Network Tab
         self.network_tab = NetworkTab()
-        self.tabs.addTab(self.network_tab, "Network")
+        self.tabs.addTab(self.network_tab, ModernIcons.network(), "Network")
         self.network_tab.refresh_btn.clicked.connect(
             lambda: self.run_plugin("windows.netscan.NetScan", self.network_tab.update_table)
         )
         
         # Registry Tab
         self.registry_tab = RegistryTab()
-        self.tabs.addTab(self.registry_tab, "Registry")
+        self.tabs.addTab(self.registry_tab, ModernIcons.registry(), "Registry")
         self.registry_tab.refresh_btn.clicked.connect(
             lambda: self.run_plugin(self.registry_tab.get_selected_plugin(), self.registry_tab.update_table)
         )
         
         # Files Tab
         self.files_tab = FilesTab()
-        self.tabs.addTab(self.files_tab, "Files")
+        self.tabs.addTab(self.files_tab, ModernIcons.file(), "Files")
         self.files_tab.scan_btn.clicked.connect(
             lambda: self.run_plugin("windows.filescan.FileScan", self.files_tab.update_table)
         )
         
         # Malware Tab
         self.malware_tab = MalwareTab()
-        self.tabs.addTab(self.malware_tab, "Malware")
+        self.tabs.addTab(self.malware_tab, ModernIcons.malware(), "Malware")
         self.malware_tab.scan_btn.clicked.connect(
             lambda: self.run_plugin(self.malware_tab.get_selected_plugin(), self.malware_tab.update_table)
         )
         
         # Timeline Tab
         self.timeline_tab = TimelineTab()
-        self.tabs.addTab(self.timeline_tab, "Timeline")
+        self.tabs.addTab(self.timeline_tab, ModernIcons.timeline(), "Timeline")
         self.timeline_tab.generate_btn.clicked.connect(self.generate_timeline_from_data)
 
         # IOC Tab
         self.ioc_tab = IOCTab()
-        self.tabs.addTab(self.ioc_tab, "IOC Checker")
+        self.tabs.addTab(self.ioc_tab, ModernIcons.ioc(), "IOC Checker")
         self.ioc_tab.scan_btn.clicked.connect(self.run_ioc_scan)
         
         # VirusTotal Tab
         self.virustotal_tab = VirusTotalTab()
-        self.tabs.addTab(self.virustotal_tab, "VirusTotal")
+        self.tabs.addTab(self.virustotal_tab, ModernIcons.virustotal(), "VirusTotal")
 
     def init_process_tab(self):
         layout = QVBoxLayout(self.process_tab)
@@ -159,36 +162,100 @@ class MainWindow(QMainWindow):
         layout.addWidget(label)
 
     def init_toolbar(self):
+        """Initialize toolbar/menu bar based on platform."""
+        if sys.platform == "darwin":
+            # macOS: Use native menu bar for Finder-like consistency
+            self._init_macos_menubar()
+        else:
+            # Windows/Linux: Use styled toolbar
+            self._init_toolbar()
+    
+    def _init_macos_menubar(self):
+        """Initialize native macOS menu bar."""
+        menubar = self.menuBar()
+        
+        # File Menu
+        file_menu = menubar.addMenu("File")
+        
+        load_action = QAction(ModernIcons.folder_open(), "Load Memory Dump", self)
+        load_action.setShortcut("Cmd+O")
+        load_action.setStatusTip("Open a memory dump file")
+        load_action.triggered.connect(self.load_image)
+        file_menu.addAction(load_action)
+        
+        file_menu.addSeparator()
+        
+        report_action = QAction(ModernIcons.report(), "Generate Report", self)
+        report_action.setShortcut("Cmd+R")
+        report_action.setStatusTip("Generate PDF forensic report")
+        report_action.triggered.connect(self.generate_report)
+        file_menu.addAction(report_action)
+        
+        # View Menu
+        view_menu = menubar.addMenu("View")
+        
+        self.logs_action = QAction(ModernIcons.logs(), "Show Logs", self)
+        self.logs_action.setShortcut("Cmd+L")
+        self.logs_action.setCheckable(True)
+        self.logs_action.triggered.connect(self.toggle_logs)
+        view_menu.addAction(self.logs_action)
+        
+        self.queue_action = QAction(ModernIcons.queue(), "Show Queue", self)
+        self.queue_action.setShortcut("Cmd+Q")
+        self.queue_action.setCheckable(True)
+        self.queue_action.triggered.connect(self.toggle_queue)
+        view_menu.addAction(self.queue_action)
+        
+        # Analysis Menu
+        analysis_menu = menubar.addMenu("Analysis")
+        
+        auto_investigate_action = QAction(ModernIcons.investigate(), "Auto Investigate", self)
+        auto_investigate_action.setShortcut("Cmd+I")
+        auto_investigate_action.setStatusTip("Run essential plugins automatically")
+        auto_investigate_action.triggered.connect(self.auto_investigate)
+        analysis_menu.addAction(auto_investigate_action)
+        
+        # Settings Menu (in app menu on macOS)
+        settings_menu = menubar.addMenu("Volatility")
+        
+        settings_action = QAction(ModernIcons.settings(), "Settings...", self)
+        settings_action.setShortcut("Cmd+,")
+        settings_action.triggered.connect(self.open_settings)
+        settings_menu.addAction(settings_action)
+    
+    def _init_toolbar(self):
+        """Initialize styled toolbar for Windows/Linux."""
         toolbar = QToolBar("Main Toolbar")
+        toolbar.setMovable(False)
         self.addToolBar(toolbar)
         
         # Load Image Action
-        load_action = QAction("Load Memory Dump", self)
+        load_action = QAction(ModernIcons.folder_open(), "Load Memory Dump", self)
         load_action.setStatusTip("Open a memory dump file")
         load_action.triggered.connect(self.load_image)
         toolbar.addAction(load_action)
         
         # Settings Action
-        settings_action = QAction("Settings", self)
+        settings_action = QAction(ModernIcons.settings(), "Settings", self)
         settings_action.triggered.connect(self.open_settings)
         toolbar.addAction(settings_action)
         
         # Show Logs Action
-        logs_action = QAction("Show Logs", self)
-        logs_action.setCheckable(True)
-        logs_action.triggered.connect(self.toggle_logs)
-        toolbar.addAction(logs_action)
+        self.logs_action = QAction(ModernIcons.logs(), "Show Logs", self)
+        self.logs_action.setCheckable(True)
+        self.logs_action.triggered.connect(self.toggle_logs)
+        toolbar.addAction(self.logs_action)
         
         # Show Queue Action
-        queue_action = QAction("Show Queue", self)
-        queue_action.setCheckable(True)
-        queue_action.triggered.connect(self.toggle_queue)
-        toolbar.addAction(queue_action)
+        self.queue_action = QAction(ModernIcons.queue(), "Show Queue", self)
+        self.queue_action.setCheckable(True)
+        self.queue_action.triggered.connect(self.toggle_queue)
+        toolbar.addAction(self.queue_action)
         
         toolbar.addSeparator()
         
         # Auto Investigate Action
-        auto_investigate_action = QAction("Auto Investigate", self)
+        auto_investigate_action = QAction(ModernIcons.investigate(), "Auto Investigate", self)
         auto_investigate_action.setStatusTip("Run essential plugins automatically")
         auto_investigate_action.triggered.connect(self.auto_investigate)
         toolbar.addAction(auto_investigate_action)
@@ -196,7 +263,7 @@ class MainWindow(QMainWindow):
         toolbar.addSeparator()
         
         # Generate Report Action
-        report_action = QAction("Generate Report", self)
+        report_action = QAction(ModernIcons.report(), "Generate Report", self)
         report_action.setStatusTip("Generate PDF forensic report")
         report_action.triggered.connect(self.generate_report)
         toolbar.addAction(report_action)
@@ -217,7 +284,7 @@ class MainWindow(QMainWindow):
 
     def on_load_finished(self, result):
         self.statusBar().showMessage(f"Loaded: {self.current_dump_path}")
-        self.setWindowTitle(f"Volatility 3 GUI - {os.path.basename(self.current_dump_path)}")
+        self.setWindowTitle(f"Volari - {os.path.basename(self.current_dump_path)}")
         QMessageBox.information(self, "File Loaded", f"Successfully loaded memory dump:\n{os.path.basename(self.current_dump_path)}")
 
     def toggle_logs(self, checked):
@@ -349,31 +416,48 @@ class MainWindow(QMainWindow):
         # Get plugin list from settings
         plugin_list = self.settings.get_auto_investigation_plugins()
         
+        # Check for running/pending tasks to avoid conflicts
+        running_plugins = set()
+        pending_plugins = set()
+        for task in self.investigation_queue.get_all_tasks():
+            from volatility_gui.logic.investigation_queue import TaskStatus
+            if task.status == TaskStatus.RUNNING:
+                running_plugins.add(task.plugin_name)
+            elif task.status == TaskStatus.PENDING:
+                pending_plugins.add(task.plugin_name)
+        
+        # Filter out already running/pending plugins
+        new_plugins = [p for p in plugin_list if p not in running_plugins and p not in pending_plugins]
+        
+        if not new_plugins:
+            QMessageBox.information(self, "Auto Investigation", 
+                "All requested plugins are already running or queued.")
+            return
+        
         # Build plugin display names for confirmation dialog
         plugin_names = []
-        for plugin in plugin_list:
+        for plugin in new_plugins:
             name = plugin.split('.')[-1]  # Get last part (e.g., "PsList" from "windows.pslist.PsList")
             plugin_names.append(f"• {name}")
+        
+        # Show warning if some plugins are skipped
+        skip_msg = ""
+        if len(new_plugins) < len(plugin_list):
+            skipped = len(plugin_list) - len(new_plugins)
+            skip_msg = f"\n\n({skipped} plugin(s) skipped - already running or queued)"
         
         # Ask user for confirmation
         reply = QMessageBox.question(
             self, 
             "Auto Investigation",
             f"Auto Investigation will run the following plugins:\n\n" +
-            "\n".join(plugin_names) + "\n\n" +
+            "\n".join(plugin_names) + skip_msg + "\n\n" +
             "This may take several minutes. Continue?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
         
         if reply != QMessageBox.StandardButton.Yes:
             return
-            
-        # Clear previous queue
-        self.investigation_queue.clear_queue()
-        
-        # Create tasks for essential plugins
-        import uuid
-        import gc
         
         # Map plugins to their callbacks
         plugin_callbacks = {
@@ -386,7 +470,7 @@ class MainWindow(QMainWindow):
         }
         
         tasks = []
-        for plugin_name in plugin_list:
+        for plugin_name in new_plugins:
             task_name = plugin_name.split('.')[-1]  # Extract simple name
             callback = plugin_callbacks.get(plugin_name, lambda data: None)  # Default to no-op
             tasks.append((task_name, plugin_name, callback))

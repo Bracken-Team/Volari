@@ -1,7 +1,9 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, 
-                             QHeaderView, QPushButton, QHBoxLayout, QLabel, QComboBox, QLineEdit, QMessageBox, QFileDialog)
+                             QHeaderView, QPushButton, QHBoxLayout, QLabel, QComboBox, QLineEdit, QMessageBox, QFileDialog,
+                             QApplication, QAbstractItemView)
 from PyQt6.QtCore import Qt
 from volatility_gui.logic.exporter import Exporter
+from volatility_gui.ui.tab_utils import setup_table_copy_on_double_click
 
 class RegistryTab(QWidget):
     def __init__(self):
@@ -58,6 +60,9 @@ class RegistryTab(QWidget):
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setSortingEnabled(True)
         
+        # Make table non-editable with copy-on-double-click
+        setup_table_copy_on_double_click(self.table)
+        
         layout.addWidget(self.table)
 
     # ... (existing methods)
@@ -93,18 +98,18 @@ class RegistryTab(QWidget):
         if not file_path:
             return
             
-        success = False
+        success, message = False, "Unsupported format"
         if file_path.endswith('.json'):
-            success = Exporter.export_to_json(data, file_path)
+            success, message = Exporter.export_to_json(data, file_path)
         elif file_path.endswith('.csv'):
-            success = Exporter.export_to_csv(data, file_path)
+            success, message = Exporter.export_to_csv(data, file_path)
         elif file_path.endswith('.html'):
-            success = Exporter.export_to_html(data, file_path)
+            success, message = Exporter.export_to_html(data, file_path)
             
         if success:
-            QMessageBox.information(self, "Export Success", f"Data exported to {file_path}")
+            QMessageBox.information(self, "Export Success", message)
         else:
-            QMessageBox.critical(self, "Export Error", "Failed to export data.")
+            QMessageBox.critical(self, "Export Error", message)
 
     def get_selected_plugin(self):
         """Get the currently selected plugin name."""
@@ -147,6 +152,9 @@ class RegistryTab(QWidget):
         
         # Cache the data
         self.plugin_data_cache[target_plugin] = data
+        
+        # Update button text to "Refresh" since we have data
+        self.refresh_btn.setText("Refresh")
         
         # Only update display if this is the currently selected plugin
         if target_plugin == self.plugin_combo.currentText():

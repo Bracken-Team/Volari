@@ -1,9 +1,10 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, 
                              QHeaderView, QPushButton, QHBoxLayout, QLabel, QComboBox, QLineEdit, QMessageBox, QFileDialog,
-                             QMenu)
+                             QMenu, QApplication, QAbstractItemView)
 from PyQt6.QtGui import QAction
 from PyQt6.QtCore import Qt
 from volatility_gui.logic.exporter import Exporter
+from volatility_gui.ui.tab_utils import setup_table_copy_on_double_click
 
 class ProcessTab(QWidget):
     def __init__(self):
@@ -15,12 +16,20 @@ class ProcessTab(QWidget):
             "PS Tree": None,
             "Handles": None,
             "DLL List": None,
-            "DLL List": None,
             "Command Line": None
         }
         self.column_widths = {}
         self.current_plugin = None
         self.init_ui()
+    
+    def showEvent(self, event):
+        """Called when the tab becomes visible. Ensures cached data is displayed."""
+        super().showEvent(event)
+        # Ensure current plugin's data is displayed when tab becomes visible
+        current_plugin = self.plugin_combo.currentText()
+        cached_data = self.plugin_data_cache.get(current_plugin)
+        if cached_data is not None and self.table.rowCount() == 0:
+            self._display_data(cached_data)
 
     def init_ui(self):
         layout = QVBoxLayout(self)
@@ -38,9 +47,8 @@ class ProcessTab(QWidget):
         controls_layout.addWidget(QLabel("Plugin:"))
         controls_layout.addWidget(self.plugin_combo)
         
-        self.refresh_btn = QPushButton("Start Analysis")
-        self.refresh_btn.clicked.connect(lambda: self.refresh_btn.setText("Refresh"))
-        # self.refresh_btn.clicked.connect(self.refresh_data) # To be connected by main window
+        self.refresh_btn = QPushButton("Run Analysis")
+        # Button text will be updated to "Refresh" when data is loaded
         controls_layout.addWidget(self.refresh_btn)
         
         self.dump_btn = QPushButton("Dump Process")
@@ -74,17 +82,20 @@ class ProcessTab(QWidget):
         self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self.show_context_menu)
         
+        # Make table non-editable with copy-on-double-click
+        setup_table_copy_on_double_click(self.table)
+        
         layout.addWidget(self.table)
 
     def show_context_menu(self, position):
         """Show context menu for table."""
         menu = QMenu()
         
-        scan_action = QAction("🔍 Scan with VirusTotal", self)
+        scan_action = QAction("Scan with VirusTotal", self)
         scan_action.triggered.connect(self.scan_selected_process_vt)
         menu.addAction(scan_action)
         
-        dump_action = QAction("💾 Dump Process", self)
+        dump_action = QAction("Dump Process", self)
         dump_action.triggered.connect(self.dump_process)
         menu.addAction(dump_action)
         
@@ -232,18 +243,18 @@ class ProcessTab(QWidget):
         if not file_path:
             return
             
-        success = False
+        success, message = False, "Unsupported format"
         if file_path.endswith('.json'):
-            success = Exporter.export_to_json(data, file_path)
+            success, message = Exporter.export_to_json(data, file_path)
         elif file_path.endswith('.csv'):
-            success = Exporter.export_to_csv(data, file_path)
+            success, message = Exporter.export_to_csv(data, file_path)
         elif file_path.endswith('.html'):
-            success = Exporter.export_to_html(data, file_path)
+            success, message = Exporter.export_to_html(data, file_path)
             
         if success:
-            QMessageBox.information(self, "Export Success", f"Data exported to {file_path}")
+            QMessageBox.information(self, "Export Success", message)
         else:
-            QMessageBox.critical(self, "Export Error", "Failed to export data.")
+            QMessageBox.critical(self, "Export Error", message)
     
     def on_plugin_changed(self, plugin_name):
         """Update table columns when plugin changes and restore cached data."""
@@ -335,6 +346,9 @@ class ProcessTab(QWidget):
         
         # Cache the data
         self.plugin_data_cache[target_plugin] = data
+        
+        # Update button text to "Refresh" since we have data now
+        self.refresh_btn.setText("Refresh")
         
         # Only update display if this is the currently selected plugin
         if target_plugin == self.plugin_combo.currentText():

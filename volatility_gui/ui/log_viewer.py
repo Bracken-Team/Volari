@@ -26,15 +26,55 @@ class LogViewer(QDockWidget):
             Qt.DockWidgetArea.BottomDockWidgetArea | Qt.DockWidgetArea.TopDockWidgetArea
         )
         
+        # Enable close, float, and move features
+        self.setFeatures(
+            QDockWidget.DockWidgetFeature.DockWidgetClosable |
+            QDockWidget.DockWidgetFeature.DockWidgetFloatable |
+            QDockWidget.DockWidgetFeature.DockWidgetMovable
+        )
+        
+        # Tokyo Night theme styling
+        self.setStyleSheet("""
+            QDockWidget {
+                background-color: #1a1b26;
+                color: #c0caf5;
+            }
+            QDockWidget::title {
+                background-color: #24283b;
+                color: #c0caf5;
+                padding: 8px;
+                font-weight: bold;
+            }
+            QDockWidget::close-button, QDockWidget::float-button {
+                background: #414868;
+                border: none;
+                border-radius: 4px;
+                padding: 4px;
+            }
+            QDockWidget::close-button:hover, QDockWidget::float-button:hover {
+                background: #7aa2f7;
+            }
+        """)
+        
         # Main widget
         widget = QWidget()
+        widget.setStyleSheet("background-color: #1a1b26;")
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(0, 0, 0, 0)
         
-        # Text area
+        # Text area with dark theme
         self.text_edit = QTextEdit()
         self.text_edit.setReadOnly(True)
-        self.text_edit.setStyleSheet("font-family: Consolas, monospace; font-size: 11px;")
+        self.text_edit.setStyleSheet("""
+            QTextEdit {
+                font-family: 'SF Mono', 'Menlo', 'Consolas', monospace;
+                font-size: 11px;
+                background-color: #1a1b26;
+                color: #a9b1d6;
+                border: 1px solid #414868;
+                border-radius: 4px;
+            }
+        """)
         layout.addWidget(self.text_edit)
         
         self.setWidget(widget)

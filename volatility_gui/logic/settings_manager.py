@@ -1,5 +1,6 @@
 import json
 import os
+import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from PyQt6.QtCore import QObject, pyqtSignal
@@ -14,7 +15,7 @@ class SettingsManager(QObject):
     # Default settings structure
     DEFAULT_SETTINGS = {
         "application": {
-            "theme": "light",
+            "theme": "dark",
             "auto_save": True,
             "default_export_format": "csv",
             "max_concurrent_tasks": 1
@@ -63,14 +64,28 @@ class SettingsManager(QObject):
         super().__init__()
         
         if config_path is None:
-            config_dir = Path.home() / ".volatility_gui"
-            config_dir.mkdir(exist_ok=True)
+            config_dir = self._get_config_dir()
+            config_dir.mkdir(parents=True, exist_ok=True)
             self.config_path = config_dir / "config.json"
         else:
             self.config_path = Path(config_path)
             
         self.settings: Dict[str, Any] = {}
         self.load()
+    
+    def _get_config_dir(self) -> Path:
+        """Get platform-appropriate config directory."""
+        if sys.platform == "darwin":
+            # macOS: ~/Library/Application Support/Volari
+            return Path.home() / "Library" / "Application Support" / "Volari"
+        elif sys.platform == "win32":
+            # Windows: %APPDATA%/Volari
+            appdata = os.environ.get('APPDATA', Path.home())
+            return Path(appdata) / "Volari"
+        else:
+            # Linux/Unix: ~/.config/volari
+            xdg_config = os.environ.get('XDG_CONFIG_HOME', Path.home() / ".config")
+            return Path(xdg_config) / "volari"
         
     def load(self):
         """Load settings from disk, creating defaults if file doesn't exist."""

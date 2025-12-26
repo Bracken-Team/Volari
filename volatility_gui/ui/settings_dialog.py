@@ -58,7 +58,7 @@ class SettingsDialog(QDialog):
         
         # Theme
         self.theme_combo = QComboBox()
-        self.theme_combo.addItems(["light", "dark"])
+        self.theme_combo.addItems(["dark", "light", "system"])
         layout.addRow("Theme:", self.theme_combo)
         
         # Auto-save

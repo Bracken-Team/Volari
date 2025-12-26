@@ -41,8 +41,8 @@ class OSInfoTab(QWidget):
     def create_group(self, title, items, row, col):
         """Create a styled group box with key-value pairs."""
         group = QGroupBox(title)
-        # Remove hardcoded colors, use system palette, increase border visibility
-        group.setStyleSheet("QGroupBox { font-weight: bold; border: 2px solid palette(midlight); border-radius: 6px; margin-top: 10px; padding-top: 15px; } QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 5px; }")
+        # Use Tokyo Night themed border color
+        group.setStyleSheet("QGroupBox { font-weight: bold; border: 1px solid #414868; border-radius: 8px; margin-top: 10px; padding-top: 15px; } QGroupBox::title { subcontrol-origin: margin; left: 10px; padding: 0 5px; color: #7aa2f7; }")
         layout = QFormLayout()
         layout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft)
         layout.setFormAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
@@ -160,5 +160,7 @@ class OSInfoTab(QWidget):
             # Span 'Other' across full width if it's the last one
             group = self.create_group("Additional Information", other_data, row, 0)
             self.dashboard_layout.addWidget(group, row, 0, 1, 2)
-            
+        
+        # Update button text to "Refresh" since we have data
+        self.refresh_btn.setText("Refresh")
         self.status_label.setText(f"OS details loaded ({len(info)} properties)")

@@ -1,12 +1,14 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QPushButton,
                              QTableWidget, QTableWidgetItem, QHeaderView, QLabel,
-                             QProgressBar, QLineEdit, QMessageBox, QGroupBox, QMenu)
+                             QProgressBar, QLineEdit, QMessageBox, QGroupBox, QMenu,
+                             QApplication, QAbstractItemView)
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QColor, QDesktopServices, QAction
 from PyQt6.QtCore import QUrl
 from volatility_gui.logic.virustotal_scanner import VirusTotalScanner
 from volatility_gui.ui.vt_settings_dialog import VTSettingsDialog
 from volatility_gui.logic.exporter import Exporter
+from volatility_gui.ui.tab_utils import setup_table_copy_on_double_click
 from typing import List, Dict, Any
 
 
@@ -52,13 +54,13 @@ class VirusTotalTab(QWidget):
         status_group = QGroupBox("VirusTotal Status")
         status_layout = QHBoxLayout()
         
-        self.api_status_label = QLabel("⚠️ API Key Not Configured")
+        self.api_status_label = QLabel("API Key Not Configured")
         self.api_status_label.setStyleSheet("font-weight: bold; color: #FF9800;")
         status_layout.addWidget(self.api_status_label)
         
         status_layout.addStretch()
         
-        config_btn = QPushButton("⚙️ Configure API Key")
+        config_btn = QPushButton("Configure API Key")
         config_btn.clicked.connect(self.open_settings)
         status_layout.addWidget(config_btn)
         
@@ -73,11 +75,11 @@ class VirusTotalTab(QWidget):
         load_layout = QHBoxLayout()
         load_layout.addWidget(QLabel("Load Hashes:"))
         
-        load_files_btn = QPushButton("📁 From Files Tab")
+        load_files_btn = QPushButton("From Files Tab")
         load_files_btn.clicked.connect(self.load_from_files)
         load_layout.addWidget(load_files_btn)
         
-        load_process_btn = QPushButton("⚙️ From Process Tab")
+        load_process_btn = QPushButton("From Process Tab")
         load_process_btn.clicked.connect(self.load_from_process)
         load_layout.addWidget(load_process_btn)
         
@@ -92,7 +94,7 @@ class VirusTotalTab(QWidget):
         self.manual_hash_input.setPlaceholderText("Enter MD5, SHA1, or SHA256 hash...")
         manual_layout.addWidget(self.manual_hash_input)
         
-        add_hash_btn = QPushButton("➕ Add Hash")
+        add_hash_btn = QPushButton("Add Hash")
         add_hash_btn.clicked.connect(self.add_manual_hash)
         manual_layout.addWidget(add_hash_btn)
         
@@ -101,7 +103,7 @@ class VirusTotalTab(QWidget):
         # Scan button and progress
         scan_layout = QHBoxLayout()
         
-        self.scan_btn = QPushButton("🔍 Scan All Hashes")
+        self.scan_btn = QPushButton("Scan All Hashes")
         self.scan_btn.clicked.connect(self.start_scan)
         self.scan_btn.setEnabled(False)
         scan_layout.addWidget(self.scan_btn)
@@ -146,6 +148,9 @@ class VirusTotalTab(QWidget):
         self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self.show_context_menu)
         
+        # Add copy-on-double-click (table already has NoEditTriggers)
+        self.table.cellDoubleClicked.connect(self._copy_cell)
+        
         layout.addWidget(self.table)
         
         # Export buttons
@@ -164,14 +169,29 @@ class VirusTotalTab(QWidget):
         
         # Update API status
         self.update_api_status()
+    
+    def _copy_cell(self, row: int, col: int):
+        """Copy cell contents to clipboard on double-click."""
+        item = self.table.item(row, col)
+        if item:
+            text = item.text()
+            clipboard = QApplication.clipboard()
+            clipboard.setText(text)
+            # Show feedback in status bar if available
+            main_window = self.window()
+            if hasattr(main_window, 'statusBar'):
+                status_bar = main_window.statusBar()
+                if status_bar:
+                    display_text = text[:50] + "..." if len(text) > 50 else text
+                    status_bar.showMessage(f"Copied: {display_text}", 2000)
         
     def update_api_status(self):
         """Update the API key status indicator."""
         if self.scanner.api_key:
-            self.api_status_label.setText("✅ API Key Configured")
+            self.api_status_label.setText("API Key Configured")
             self.api_status_label.setStyleSheet("font-weight: bold; color: #4CAF50;")
         else:
-            self.api_status_label.setText("⚠️ API Key Not Configured")
+            self.api_status_label.setText("API Key Not Configured")
             self.api_status_label.setStyleSheet("font-weight: bold; color: #FF9800;")
             
     def open_settings(self):
@@ -406,11 +426,11 @@ class VirusTotalTab(QWidget):
         """Show context menu for table."""
         menu = QMenu()
         
-        open_vt_action = QAction("🌐 Open in VirusTotal", self)
+        open_vt_action = QAction("Open in VirusTotal", self)
         open_vt_action.triggered.connect(self.open_in_virustotal)
         menu.addAction(open_vt_action)
         
-        copy_hash_action = QAction("📋 Copy Hash", self)
+        copy_hash_action = QAction("Copy Hash", self)
         copy_hash_action.triggered.connect(self.copy_hash)
         menu.addAction(copy_hash_action)
         
@@ -439,14 +459,32 @@ class VirusTotalTab(QWidget):
         if not self.results:
             QMessageBox.warning(self, "No Results", "No scan results to export.")
             return
+        
+        # Get save path from user
+        from PyQt6.QtWidgets import QFileDialog
+        if format_type == "csv":
+            file_path, _ = QFileDialog.getSaveFileName(
+                self, "Export CSV", "virustotal_results.csv", "CSV Files (*.csv)"
+            )
+        elif format_type == "json":
+            file_path, _ = QFileDialog.getSaveFileName(
+                self, "Export JSON", "virustotal_results.json", "JSON Files (*.json)"
+            )
+        else:
+            return
+            
+        if not file_path:
+            return
             
         exporter = Exporter()
         if format_type == "csv":
-            success = exporter.export_csv(self.results, "virustotal_results.csv")
+            success, message = exporter.export_to_csv(self.results, file_path)
         elif format_type == "json":
-            success = exporter.export_json(self.results, "virustotal_results.json")
+            success, message = exporter.export_to_json(self.results, file_path)
         else:
             return
             
         if success:
-            QMessageBox.information(self, "Success", f"Results exported to {format_type.upper()}")
+            QMessageBox.information(self, "Success", message)
+        else:
+            QMessageBox.warning(self, "Export Error", message)

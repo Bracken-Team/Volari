@@ -1,10 +1,11 @@
 from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QTableWidget, QTableWidgetItem, 
                              QHeaderView, QPushButton, QHBoxLayout, QLabel, QFileDialog, QMessageBox, QLineEdit,
-                             QMenu)
+                             QMenu, QApplication, QAbstractItemView)
 from PyQt6.QtGui import QAction
 from PyQt6.QtCore import Qt
 import os
 from volatility_gui.logic.exporter import Exporter
+from volatility_gui.ui.tab_utils import setup_table_copy_on_double_click
 
 class FilesTab(QWidget):
     def __init__(self):
@@ -57,13 +58,16 @@ class FilesTab(QWidget):
         self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.table.customContextMenuRequested.connect(self.show_context_menu)
         
+        # Make table non-editable with copy-on-double-click
+        setup_table_copy_on_double_click(self.table)
+        
         layout.addWidget(self.table)
 
     def show_context_menu(self, position):
         """Show context menu for table."""
         menu = QMenu()
         
-        scan_action = QAction("🔍 Scan with VirusTotal", self)
+        scan_action = QAction("Scan with VirusTotal", self)
         scan_action.triggered.connect(self.scan_selected_file_vt)
         menu.addAction(scan_action)
         
@@ -154,6 +158,9 @@ class FilesTab(QWidget):
         self.current_data = data  # Cache data
         self.table.setRowCount(0)
         
+        # Update button text to "Refresh" since we have data
+        self.scan_btn.setText("Refresh")
+        
         if not data:
             self.status_label.setText("No files found")
             return
@@ -210,18 +217,18 @@ class FilesTab(QWidget):
         if not file_path:
             return
             
-        success = False
+        success, message = False, "Unsupported format"
         if file_path.endswith('.json'):
-            success = Exporter.export_to_json(self.current_data, file_path)
+            success, message = Exporter.export_to_json(self.current_data, file_path)
         elif file_path.endswith('.csv'):
-            success = Exporter.export_to_csv(self.current_data, file_path)
+            success, message = Exporter.export_to_csv(self.current_data, file_path)
         elif file_path.endswith('.html'):
-            success = Exporter.export_to_html(self.current_data, file_path)
+            success, message = Exporter.export_to_html(self.current_data, file_path)
             
         if success:
-            QMessageBox.information(self, "Export Success", f"Data exported to {file_path}")
+            QMessageBox.information(self, "Export Success", message)
         else:
-            QMessageBox.critical(self, "Export Error", "Failed to export data.")
+            QMessageBox.critical(self, "Export Error", message)
 
     def on_selection_changed(self):
         """Enable/disable dump button based on selection."""

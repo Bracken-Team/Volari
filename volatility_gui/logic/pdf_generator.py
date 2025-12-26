@@ -9,6 +9,20 @@ from typing import List, Dict, Any, Optional
 import os
 
 
+# Tokyo Night color scheme for PDF reports
+class TokyoNightPDF:
+    """Tokyo Night colors adapted for PDF generation."""
+    BG_DARK = colors.HexColor('#1a1b26')
+    BG = colors.HexColor('#24283b')
+    BG_HIGHLIGHT = colors.HexColor('#292e42')
+    FG = colors.HexColor('#c0caf5')
+    FG_DARK = colors.HexColor('#a9b1d6')
+    ACCENT = colors.HexColor('#7aa2f7')
+    ACCENT_SECONDARY = colors.HexColor('#bb9af7')
+    BORDER = colors.HexColor('#414868')
+    CYAN = colors.HexColor('#7dcfff')
+
+
 class PDFReportGenerator:
     """Generate professional PDF reports for forensic analysis."""
     
@@ -26,12 +40,12 @@ class PDFReportGenerator:
         self.styles = getSampleStyleSheet()
         self.story = []
         
-        # Custom styles
+        # Custom Tokyo Night-inspired styles
         self.title_style = ParagraphStyle(
             'CustomTitle',
             parent=self.styles['Heading1'],
             fontSize=24,
-            textColor=colors.HexColor('#1a1a1a'),
+            textColor=TokyoNightPDF.ACCENT,
             spaceAfter=30,
             alignment=TA_CENTER
         )
@@ -40,7 +54,7 @@ class PDFReportGenerator:
             'CustomHeading',
             parent=self.styles['Heading2'],
             fontSize=16,
-            textColor=colors.HexColor('#2c3e50'),
+            textColor=TokyoNightPDF.ACCENT_SECONDARY,
             spaceAfter=12,
             spaceBefore=12
         )
@@ -49,7 +63,7 @@ class PDFReportGenerator:
             'CustomSubHeading',
             parent=self.styles['Heading3'],
             fontSize=12,
-            textColor=colors.HexColor('#34495e'),
+            textColor=TokyoNightPDF.CYAN,
             spaceAfter=6
         )
         
@@ -119,19 +133,20 @@ class PDFReportGenerator:
         # Create table
         table = Table(table_data, colWidths=[col_width] * len(headers))
         table.setStyle(TableStyle([
-            # Header style
-            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#3498db')),
-            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            # Header style - Tokyo Night accent
+            ('BACKGROUND', (0, 0), (-1, 0), TokyoNightPDF.ACCENT),
+            ('TEXTCOLOR', (0, 0), (-1, 0), TokyoNightPDF.BG_DARK),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 10),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
             
-            # Data style
+            # Data style - Tokyo Night alternating rows
             ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
             ('FONTSIZE', (0, 1), (-1, -1), 8),
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#ecf0f1')]),
-            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            ('TEXTCOLOR', (0, 1), (-1, -1), TokyoNightPDF.FG),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [TokyoNightPDF.BG_DARK, TokyoNightPDF.BG]),
+            ('GRID', (0, 0), (-1, -1), 0.5, TokyoNightPDF.BORDER),
             ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ]))
         

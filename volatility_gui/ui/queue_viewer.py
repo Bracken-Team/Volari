@@ -21,18 +21,18 @@ class TaskCard(QFrame):
     def init_ui(self):
         """Initialize the card UI."""
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(8)
         
         # Top row: Task name and status
         top_layout = QHBoxLayout()
         
-        # Task name (larger font, dark text, transparent background)
+        # Task name (larger font, light text for dark theme)
         self.name_label = QLabel(self.task.name)
         self.name_label.setStyleSheet("""
             font-size: 14px; 
             font-weight: bold; 
-            color: #212121;
+            color: #c0caf5;
             background-color: transparent;
             padding: 2px;
         """)
@@ -42,13 +42,13 @@ class TaskCard(QFrame):
         
         # Status badge
         self.status_label = QLabel()
-        self.status_label.setStyleSheet("padding: 4px 8px; border-radius: 3px; font-size: 11px; background-color: transparent;")
+        self.status_label.setStyleSheet("padding: 4px 8px; border-radius: 6px; font-size: 11px;")
         self.update_status_badge()
         top_layout.addWidget(self.status_label)
         
         layout.addLayout(top_layout)
         
-        # Progress bar
+        # Progress bar with dark theme
         self.progress_bar = QProgressBar()
         self.progress_bar.setMinimum(0)
         self.progress_bar.setMaximum(100)
@@ -56,18 +56,19 @@ class TaskCard(QFrame):
         clamped_progress = max(0, min(100, self.task.progress))
         self.progress_bar.setValue(clamped_progress)
         self.progress_bar.setTextVisible(True)
-        self.progress_bar.setFixedHeight(25)
-        # Ensure progress bar text is visible
+        self.progress_bar.setFixedHeight(24)
+        # Dark theme progress bar
         self.progress_bar.setStyleSheet("""
             QProgressBar {
-                border: 1px solid #BDBDBD;
-                border-radius: 3px;
+                border: 1px solid #414868;
+                border-radius: 6px;
                 text-align: center;
-                background-color: #EEEEEE;
-                color: #212121;
+                background-color: #1a1b26;
+                color: #c0caf5;
             }
             QProgressBar::chunk {
-                background-color: #4CAF50;
+                background-color: #9ece6a;
+                border-radius: 5px;
             }
         """)
         self.update_progress_format()
@@ -132,16 +133,17 @@ class TaskCard(QFrame):
         
     def update_background(self):
         """Update card background based on status."""
+        # Dark theme status colors
         bg_colors = {
-            TaskStatus.PENDING: "#FFFDE7",
-            TaskStatus.RUNNING: "#E3F2FD",
-            TaskStatus.PAUSED: "#FFF3E0",
-            TaskStatus.COMPLETED: "#F1F8E9",
-            TaskStatus.FAILED: "#FFEBEE",
+            TaskStatus.PENDING: "#2a2d3d",
+            TaskStatus.RUNNING: "#1a2a4a",
+            TaskStatus.PAUSED: "#3a2a1a",
+            TaskStatus.COMPLETED: "#1a3a2a",
+            TaskStatus.FAILED: "#3a1a1a",
         }
         
-        bg_color = bg_colors.get(self.task.status, "#FFFFFF")
-        self.setStyleSheet(f"TaskCard {{ background-color: {bg_color}; border-radius: 5px; }}")
+        bg_color = bg_colors.get(self.task.status, "#24283b")
+        self.setStyleSheet(f"TaskCard {{ background-color: {bg_color}; border-radius: 8px; border: 1px solid #414868; }}")
         
     def update_progress_format(self):
         """Update progress bar format text."""
@@ -199,6 +201,38 @@ class QueueViewer(QDockWidget):
         self.parent_window = parent
         self.is_paused = False
         self.task_cards = {}  # Map task_id to TaskCard widget
+        
+        # Enable close, float, and move features
+        self.setFeatures(
+            QDockWidget.DockWidgetFeature.DockWidgetClosable |
+            QDockWidget.DockWidgetFeature.DockWidgetFloatable |
+            QDockWidget.DockWidgetFeature.DockWidgetMovable
+        )
+        
+        # Tokyo Night theme colors
+        self.setStyleSheet("""
+            QDockWidget {
+                background-color: #1a1b26;
+                color: #c0caf5;
+                titlebar-close-icon: url(none);
+            }
+            QDockWidget::title {
+                background-color: #24283b;
+                color: #c0caf5;
+                padding: 8px;
+                font-weight: bold;
+            }
+            QDockWidget::close-button, QDockWidget::float-button {
+                background: #414868;
+                border: none;
+                border-radius: 4px;
+                padding: 4px;
+            }
+            QDockWidget::close-button:hover, QDockWidget::float-button:hover {
+                background: #7aa2f7;
+            }
+        """)
+        
         self.init_ui()
         self.connect_signals()
         
@@ -206,13 +240,14 @@ class QueueViewer(QDockWidget):
         """Initialize the UI."""
         # Main widget
         main_widget = QWidget()
+        main_widget.setStyleSheet("background-color: #1a1b26;")
         layout = QVBoxLayout(main_widget)
-        layout.setContentsMargins(5, 5, 5, 5)
+        layout.setContentsMargins(8, 8, 8, 8)
         
         # Summary section
         summary_frame = QFrame()
         summary_frame.setFrameStyle(QFrame.Shape.StyledPanel)
-        summary_frame.setStyleSheet("background-color: #F5F5F5; border-radius: 5px; padding: 5px;")
+        summary_frame.setStyleSheet("background-color: #24283b; border-radius: 8px; padding: 8px; border: 1px solid #414868;")
         summary_layout = QHBoxLayout(summary_frame)
         
         self.total_label = QLabel("Total: 0")
@@ -224,10 +259,13 @@ class QueueViewer(QDockWidget):
         
         for label in [self.total_label, self.pending_label, self.running_label, 
                       self.paused_label, self.completed_label, self.failed_label]:
-            label.setStyleSheet("font-weight: bold; padding: 2px 5px; color: #212121;")
+            label.setStyleSheet("font-weight: bold; padding: 2px 5px; color: #c0caf5; background: transparent;")
+        
+        separator = QLabel("|")
+        separator.setStyleSheet("color: #414868; background: transparent;")
         
         summary_layout.addWidget(self.total_label)
-        summary_layout.addWidget(QLabel("|"))
+        summary_layout.addWidget(separator)
         summary_layout.addWidget(self.pending_label)
         summary_layout.addWidget(self.running_label)
         summary_layout.addWidget(self.paused_label)
