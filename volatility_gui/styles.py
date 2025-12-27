@@ -145,8 +145,8 @@ def get_stylesheet(theme: str = "dark") -> str:
     QMainWindow, QWidget {{
         background-color: {c.BG_DARK};
         color: {c.FG};
-        font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-        font-size: 12px;
+        font-family: "Helvetica Neue", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+        font-size: 13px;
     }}
     
     /* ========== Menu Bar (non-macOS) ========== */
@@ -171,13 +171,13 @@ def get_stylesheet(theme: str = "dark") -> str:
     QMenu {{
         background-color: {c.BG};
         border: 1px solid {c.BORDER};
-        border-radius: 10px;
-        padding: 6px 4px;
+        border-radius: 12px;
+        padding: 8px 4px;
     }}
     
     QMenu::item {{
         padding: 6px 24px 6px 20px;
-        border-radius: 6px;
+        border-radius: 8px;
         margin: 1px 4px;
     }}
     
@@ -210,7 +210,7 @@ def get_stylesheet(theme: str = "dark") -> str:
     QToolButton {{
         background-color: transparent;
         border: none;
-        border-radius: 8px;
+        border-radius: 10px;
         padding: 6px 10px;
         color: {c.FG};
         font-weight: 500;
@@ -243,10 +243,10 @@ def get_stylesheet(theme: str = "dark") -> str:
     QTabBar::tab {{
         background-color: {c.BG};
         color: {c.FG_DARK};
-        padding: 6px 12px;
-        margin-right: 1px;
-        border-top-left-radius: 8px;
-        border-top-right-radius: 8px;
+        padding: 8px 14px;
+        margin-right: 2px;
+        border-top-left-radius: 12px;
+        border-top-right-radius: 12px;
         border: none;
         min-width: 60px;
     }}
@@ -267,8 +267,8 @@ def get_stylesheet(theme: str = "dark") -> str:
         background-color: {c.BG_HIGHLIGHT};
         color: {c.FG};
         border: 1px solid {c.BORDER};
-        border-radius: 8px;
-        padding: 5px 12px;
+        border-radius: 10px;
+        padding: 6px 14px;
         font-weight: 500;
         min-width: 60px;
     }}
@@ -305,8 +305,8 @@ def get_stylesheet(theme: str = "dark") -> str:
         background-color: {c.BG};
         color: {c.FG};
         border: 1px solid {c.BORDER};
-        border-radius: 8px;
-        padding: 5px 10px;
+        border-radius: 10px;
+        padding: 6px 12px;
         selection-background-color: {c.BG_VISUAL};
     }}
     
@@ -324,8 +324,8 @@ def get_stylesheet(theme: str = "dark") -> str:
         background-color: {c.BG};
         color: {c.FG};
         border: 1px solid {c.BORDER};
-        border-radius: 8px;
-        padding: 6px;
+        border-radius: 12px;
+        padding: 8px;
         selection-background-color: {c.BG_VISUAL};
     }}
     
@@ -338,11 +338,11 @@ def get_stylesheet(theme: str = "dark") -> str:
         background-color: {c.BG};
         color: {c.FG};
         border: 1px solid {c.BORDER};
-        border-radius: 8px;
-        padding: 5px 10px;
+        border-radius: 10px;
+        padding: 6px 12px;
         padding-right: 28px;
         min-width: 80px;
-        min-height: 20px;
+        min-height: 24px;
     }}
     
     QComboBox:hover {{
@@ -373,16 +373,16 @@ def get_stylesheet(theme: str = "dark") -> str:
         background-color: {c.BG};
         color: {c.FG};
         border: 1px solid {c.BORDER};
-        border-radius: 6px;
+        border-radius: 10px;
         selection-background-color: {c.ACCENT};
         selection-color: {c.BG_DARK};
-        padding: 4px;
+        padding: 6px;
         outline: none;
     }}
     
     QComboBox QAbstractItemView::item {{
         padding: 8px 12px;
-        border-radius: 4px;
+        border-radius: 6px;
         min-height: 24px;
     }}
     
@@ -400,8 +400,8 @@ def get_stylesheet(theme: str = "dark") -> str:
         background-color: {c.BG};
         color: {c.FG};
         border: 1px solid {c.BORDER};
-        border-radius: 8px;
-        padding: 5px 10px;
+        border-radius: 10px;
+        padding: 6px 12px;
     }}
     
     QSpinBox:focus, QDoubleSpinBox:focus {{
@@ -416,10 +416,10 @@ def get_stylesheet(theme: str = "dark") -> str:
     }}
     
     QCheckBox::indicator {{
-        width: 16px;
-        height: 16px;
+        width: 18px;
+        height: 18px;
         border: 2px solid {c.BORDER};
-        border-radius: 4px;
+        border-radius: 5px;
         background-color: {c.BG};
     }}
     
@@ -437,7 +437,7 @@ def get_stylesheet(theme: str = "dark") -> str:
         background-color: {c.BG_DARK};
         color: {c.FG};
         border: 1px solid {c.BORDER};
-        border-radius: 8px;
+        border-radius: 12px;
         gridline-color: {c.BORDER};
         selection-background-color: {c.BG_VISUAL};
         selection-color: {c.FG};
@@ -519,9 +519,9 @@ def get_stylesheet(theme: str = "dark") -> str:
     QGroupBox {{
         background-color: transparent;
         border: 1px solid {c.BORDER};
-        border-radius: 10px;
-        margin-top: 12px;
-        padding: 10px;
+        border-radius: 14px;
+        margin-top: 14px;
+        padding: 12px;
         font-weight: 600;
     }}
     
@@ -565,15 +565,15 @@ def get_stylesheet(theme: str = "dark") -> str:
     QProgressBar {{
         background-color: {c.BG};
         border: none;
-        border-radius: 4px;
-        height: 6px;
+        border-radius: 5px;
+        height: 8px;
         text-align: center;
     }}
     
     QProgressBar::chunk {{
         background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
             stop:0 {c.ACCENT}, stop:1 {c.CYAN});
-        border-radius: 4px;
+        border-radius: 5px;
     }}
     
     /* ========== Dialog ========== */
@@ -591,13 +591,13 @@ def get_stylesheet(theme: str = "dark") -> str:
         background-color: {c.BG};
         color: {c.FG};
         border: 1px solid {c.BORDER};
-        border-radius: 8px;
-        padding: 4px;
+        border-radius: 12px;
+        padding: 6px;
     }}
     
     QListWidget::item {{
-        padding: 6px;
-        border-radius: 6px;
+        padding: 8px;
+        border-radius: 8px;
     }}
     
     QListWidget::item:selected {{
@@ -623,8 +623,8 @@ def get_stylesheet(theme: str = "dark") -> str:
         background-color: {c.BG};
         color: {c.FG};
         border: 1px solid {c.BORDER};
-        border-radius: 6px;
-        padding: 4px 8px;
+        border-radius: 8px;
+        padding: 6px 10px;
     }}
     
     /* ========== Splitter ========== */

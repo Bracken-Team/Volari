@@ -6,6 +6,10 @@ vt-py>=0.18.0
 requests>=2.0.0
 pyqtdarktheme>=2.1.0
 
+# macOS Window Customization (optional, macOS only)
+pyobjc-core>=10.0; sys_platform == "darwin"
+pyobjc-framework-Cocoa>=10.0; sys_platform == "darwin"
+
 # Volatility 3 Core Dependencies
 pefile>=2024.8.26
 yara-python>=4.5.1,<5
