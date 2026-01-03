@@ -1,11 +1,10 @@
 import os
 import sys
-import threading
 import uuid
-from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QTabWidget, 
-                             QLabel, QFileDialog, QToolBar, QStatusBar, QMessageBox, QProgressBar, QDialog, QMenuBar, QMenu)
-from PyQt6.QtGui import QAction, QIcon
-from PyQt6.QtCore import Qt, pyqtSignal, QObject
+from PyQt6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, QTabWidget,
+                             QLabel, QFileDialog, QToolBar, QStatusBar, QMessageBox, QProgressBar, QDialog)
+from PyQt6.QtGui import QAction
+from PyQt6.QtCore import Qt
 
 from volatility_gui.modern_icons import ModernIcons
 
@@ -35,15 +34,15 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.setWindowTitle("Volari")
         self.resize(1200, 800)
-        
+
         # Initialize Settings
         self.settings = SettingsManager()
-        
+
         # Initialize Wrapper
         self.vol_wrapper = VolatilityWrapper()
         self.current_dump_path = None
         self.worker = None
-        
+
         # Initialize Investigation Queue
         self.investigation_queue = InvestigationQueue()
         self.queue_viewer = None
@@ -52,44 +51,44 @@ class MainWindow(QMainWindow):
         self.worker_map = {}  # Map task_id to worker for pause/stop operations
         # Load max concurrent tasks from settings
         self.MAX_CONCURRENT_TASKS = self.settings.get_max_concurrent_tasks()
-        
+
         # Central Widget
         central_widget = QWidget()
         self.setCentralWidget(central_widget)
-        
+
         # Main Layout
         layout = QVBoxLayout(central_widget)
-        
+
         # Tab Widget
         self.tabs = QTabWidget()
         layout.addWidget(self.tabs)
-        
+
         # Initialize Tabs
         self.init_tabs()
-        
+
         # Toolbar
         self.init_toolbar()
-        
+
         # Status Bar
         self.setStatusBar(QStatusBar())
         self.statusBar().showMessage("Ready")
-        
+
         # Progress Bar
         self.progress_bar = QProgressBar()
         self.progress_bar.setRange(0, 100)
         self.progress_bar.setVisible(False)
         self.statusBar().addPermanentWidget(self.progress_bar)
-        
+
         # Log Viewer
         self.log_viewer = LogViewer(self)
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.log_viewer)
         self.log_viewer.hide()
-        
+
         # Queue Viewer
         self.queue_viewer = QueueViewer(self.investigation_queue, self)
         self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.queue_viewer)
         self.queue_viewer.hide()
-        
+
         # Connect queue signals for global progress
         self.investigation_queue.task_started.connect(self.on_queue_task_started)
         self.investigation_queue.task_progress.connect(lambda tid, pct, msg: self.update_progress(pct, msg))
@@ -102,7 +101,7 @@ class MainWindow(QMainWindow):
         self.osinfo_tab.refresh_btn.clicked.connect(
             lambda: self.run_plugin("windows.info.Info", self.osinfo_tab.update_display)
         )
-        
+
         # Processes Tab
         self.process_tab = ProcessTab()
         self.tabs.addTab(self.process_tab, ModernIcons.process(), "Processes")
@@ -112,35 +111,35 @@ class MainWindow(QMainWindow):
         )
         # Connect dump button
         self.process_tab.dump_btn.clicked.connect(self.dump_process)
-        
+
         # Network Tab
         self.network_tab = NetworkTab()
         self.tabs.addTab(self.network_tab, ModernIcons.network(), "Network")
         self.network_tab.refresh_btn.clicked.connect(
             lambda: self.run_plugin("windows.netscan.NetScan", self.network_tab.update_table)
         )
-        
+
         # Registry Tab
         self.registry_tab = RegistryTab()
         self.tabs.addTab(self.registry_tab, ModernIcons.registry(), "Registry")
         self.registry_tab.refresh_btn.clicked.connect(
             lambda: self.run_plugin(self.registry_tab.get_selected_plugin(), self.registry_tab.update_table)
         )
-        
+
         # Files Tab
         self.files_tab = FilesTab()
         self.tabs.addTab(self.files_tab, ModernIcons.file(), "Files")
         self.files_tab.scan_btn.clicked.connect(
             lambda: self.run_plugin("windows.filescan.FileScan", self.files_tab.update_table)
         )
-        
+
         # Malware Tab
         self.malware_tab = MalwareTab()
         self.tabs.addTab(self.malware_tab, ModernIcons.malware(), "Malware")
         self.malware_tab.scan_btn.clicked.connect(
             lambda: self.run_plugin(self.malware_tab.get_selected_plugin(), self.malware_tab.update_table)
         )
-        
+
         # Timeline Tab
         self.timeline_tab = TimelineTab()
         self.tabs.addTab(self.timeline_tab, ModernIcons.timeline(), "Timeline")
@@ -150,7 +149,7 @@ class MainWindow(QMainWindow):
         self.ioc_tab = IOCTab()
         self.tabs.addTab(self.ioc_tab, ModernIcons.ioc(), "IOC Checker")
         self.ioc_tab.scan_btn.clicked.connect(self.run_ioc_scan)
-        
+
         # VirusTotal Tab
         self.virustotal_tab = VirusTotalTab()
         self.tabs.addTab(self.virustotal_tab, ModernIcons.virustotal(), "VirusTotal")
@@ -169,99 +168,205 @@ class MainWindow(QMainWindow):
         else:
             # Windows/Linux: Use styled toolbar
             self._init_toolbar()
-    
+
     def _init_macos_menubar(self):
-        """Initialize native macOS menu bar."""
+        """Initialize native macOS menu bar with comprehensive keyboard shortcuts."""
+        from PyQt6.QtGui import QKeySequence
+
         menubar = self.menuBar()
-        
+
+        # Volari Menu (App Menu - first menu is treated as app menu on macOS)
+        app_menu = menubar.addMenu("Volari")
+
+        settings_action = QAction(ModernIcons.settings(), "Settings...", self)
+        settings_action.setShortcut(QKeySequence.StandardKey.Preferences)
+        settings_action.setMenuRole(QAction.MenuRole.PreferencesRole)
+        settings_action.triggered.connect(self.open_settings)
+        app_menu.addAction(settings_action)
+
         # File Menu
         file_menu = menubar.addMenu("File")
-        
-        load_action = QAction(ModernIcons.folder_open(), "Load Memory Dump", self)
-        load_action.setShortcut("Cmd+O")
+
+        load_action = QAction(ModernIcons.folder_open(), "Open Memory Dump...", self)
+        load_action.setShortcut(QKeySequence.StandardKey.Open)
         load_action.setStatusTip("Open a memory dump file")
         load_action.triggered.connect(self.load_image)
         file_menu.addAction(load_action)
-        
+
         file_menu.addSeparator()
-        
-        report_action = QAction(ModernIcons.report(), "Generate Report", self)
-        report_action.setShortcut("Cmd+R")
+
+        report_action = QAction(ModernIcons.report(), "Export Report...", self)
+        report_action.setShortcut("Ctrl+E")
         report_action.setStatusTip("Generate PDF forensic report")
         report_action.triggered.connect(self.generate_report)
         file_menu.addAction(report_action)
-        
+
+        # Edit Menu (standard macOS menu)
+        edit_menu = menubar.addMenu("Edit")
+
+        # Standard edit actions (Qt handles these automatically for text fields)
+        copy_action = QAction("Copy", self)
+        copy_action.setShortcut(QKeySequence.StandardKey.Copy)
+        edit_menu.addAction(copy_action)
+
+        select_all_action = QAction("Select All", self)
+        select_all_action.setShortcut(QKeySequence.StandardKey.SelectAll)
+        edit_menu.addAction(select_all_action)
+
+        edit_menu.addSeparator()
+
+        find_action = QAction("Find...", self)
+        find_action.setShortcut(QKeySequence.StandardKey.Find)
+        find_action.setStatusTip("Search in current tab")
+        edit_menu.addAction(find_action)
+
         # View Menu
         view_menu = menubar.addMenu("View")
-        
+
         self.logs_action = QAction(ModernIcons.logs(), "Show Logs", self)
-        self.logs_action.setShortcut("Cmd+L")
+        self.logs_action.setShortcut("Ctrl+Shift+L")
         self.logs_action.setCheckable(True)
         self.logs_action.triggered.connect(self.toggle_logs)
         view_menu.addAction(self.logs_action)
-        
+
         self.queue_action = QAction(ModernIcons.queue(), "Show Queue", self)
-        self.queue_action.setShortcut("Cmd+Q")
+        self.queue_action.setShortcut("Ctrl+Shift+K")  # Using K to avoid conflicts
         self.queue_action.setCheckable(True)
         self.queue_action.triggered.connect(self.toggle_queue)
         view_menu.addAction(self.queue_action)
-        
+
+        view_menu.addSeparator()
+
+        # Tab navigation shortcuts
+        view_menu.addAction(self._create_tab_action("OS Info", 0, "Ctrl+1"))
+        view_menu.addAction(self._create_tab_action("Processes", 1, "Ctrl+2"))
+        view_menu.addAction(self._create_tab_action("Network", 2, "Ctrl+3"))
+        view_menu.addAction(self._create_tab_action("Registry", 3, "Ctrl+4"))
+        view_menu.addAction(self._create_tab_action("Files", 4, "Ctrl+5"))
+        view_menu.addAction(self._create_tab_action("Malware", 5, "Ctrl+6"))
+        view_menu.addAction(self._create_tab_action("Timeline", 6, "Ctrl+7"))
+        view_menu.addAction(self._create_tab_action("IOC Checker", 7, "Ctrl+8"))
+        view_menu.addAction(self._create_tab_action("VirusTotal", 8, "Ctrl+9"))
+
+        view_menu.addSeparator()
+
+        fullscreen_action = QAction("Enter Full Screen", self)
+        fullscreen_action.setShortcut(QKeySequence.StandardKey.FullScreen)
+        fullscreen_action.triggered.connect(self._toggle_fullscreen)
+        view_menu.addAction(fullscreen_action)
+
         # Analysis Menu
         analysis_menu = menubar.addMenu("Analysis")
-        
+
         auto_investigate_action = QAction(ModernIcons.investigate(), "Auto Investigate", self)
-        auto_investigate_action.setShortcut("Cmd+I")
+        auto_investigate_action.setShortcut("Ctrl+Shift+I")
         auto_investigate_action.setStatusTip("Run essential plugins automatically")
         auto_investigate_action.triggered.connect(self.auto_investigate)
         analysis_menu.addAction(auto_investigate_action)
-        
-        # Settings Menu (in app menu on macOS)
-        settings_menu = menubar.addMenu("Volatility")
-        
-        settings_action = QAction(ModernIcons.settings(), "Settings...", self)
-        settings_action.setShortcut("Cmd+,")
-        settings_action.triggered.connect(self.open_settings)
-        settings_menu.addAction(settings_action)
-    
+
+        analysis_menu.addSeparator()
+
+        refresh_action = QAction("Refresh Current Tab", self)
+        refresh_action.setShortcut(QKeySequence.StandardKey.Refresh)
+        refresh_action.setStatusTip("Refresh the current analysis tab")
+        refresh_action.triggered.connect(self._refresh_current_tab)
+        analysis_menu.addAction(refresh_action)
+
+        # Window Menu (standard macOS)
+        window_menu = menubar.addMenu("Window")
+
+        minimize_action = QAction("Minimize", self)
+        minimize_action.setShortcut("Ctrl+M")
+        minimize_action.triggered.connect(self.showMinimized)
+        window_menu.addAction(minimize_action)
+
+        zoom_action = QAction("Zoom", self)
+        zoom_action.triggered.connect(self._toggle_fullscreen)
+        window_menu.addAction(zoom_action)
+
+        # Help Menu
+        help_menu = menubar.addMenu("Help")
+
+        about_action = QAction("About Volari", self)
+        about_action.setMenuRole(QAction.MenuRole.AboutRole)
+        about_action.triggered.connect(self._show_about)
+        help_menu.addAction(about_action)
+
+    def _create_tab_action(self, name: str, index: int, shortcut: str) -> QAction:
+        """Create an action to switch to a specific tab."""
+        action = QAction(name, self)
+        action.setShortcut(shortcut)
+        action.triggered.connect(lambda: self.tabs.setCurrentIndex(index))
+        return action
+
+    def _refresh_current_tab(self):
+        """Refresh the currently active tab."""
+        current_tab = self.tabs.currentWidget()
+        # Try to find and click the refresh button
+        if hasattr(current_tab, 'refresh_btn'):
+            current_tab.refresh_btn.click()
+        elif hasattr(current_tab, 'scan_btn'):
+            current_tab.scan_btn.click()
+        elif hasattr(current_tab, 'generate_btn'):
+            current_tab.generate_btn.click()
+
+    def _toggle_fullscreen(self):
+        """Toggle fullscreen mode."""
+        if self.isFullScreen():
+            self.showNormal()
+        else:
+            self.showFullScreen()
+
+    def _show_about(self):
+        """Show about dialog."""
+        QMessageBox.about(
+            self,
+            "About Volari",
+            "<h2>Volari</h2>"
+            "<p>A modern GUI for Volatility 3 memory forensics framework.</p>"
+            "<p>Version 1.0.0</p>"
+            "<p>Built with PyQt6 and Volatility 3</p>"
+        )
+
     def _init_toolbar(self):
         """Initialize styled toolbar for Windows/Linux."""
         toolbar = QToolBar("Main Toolbar")
         toolbar.setMovable(False)
         self.addToolBar(toolbar)
-        
+
         # Load Image Action
         load_action = QAction(ModernIcons.folder_open(), "Load Memory Dump", self)
         load_action.setStatusTip("Open a memory dump file")
         load_action.triggered.connect(self.load_image)
         toolbar.addAction(load_action)
-        
+
         # Settings Action
         settings_action = QAction(ModernIcons.settings(), "Settings", self)
         settings_action.triggered.connect(self.open_settings)
         toolbar.addAction(settings_action)
-        
+
         # Show Logs Action
         self.logs_action = QAction(ModernIcons.logs(), "Show Logs", self)
         self.logs_action.setCheckable(True)
         self.logs_action.triggered.connect(self.toggle_logs)
         toolbar.addAction(self.logs_action)
-        
+
         # Show Queue Action
         self.queue_action = QAction(ModernIcons.queue(), "Show Queue", self)
         self.queue_action.setCheckable(True)
         self.queue_action.triggered.connect(self.toggle_queue)
         toolbar.addAction(self.queue_action)
-        
+
         toolbar.addSeparator()
-        
+
         # Auto Investigate Action
         auto_investigate_action = QAction(ModernIcons.investigate(), "Auto Investigate", self)
         auto_investigate_action.setStatusTip("Run essential plugins automatically")
         auto_investigate_action.triggered.connect(self.auto_investigate)
         toolbar.addAction(auto_investigate_action)
-        
+
         toolbar.addSeparator()
-        
+
         # Generate Report Action
         report_action = QAction(ModernIcons.report(), "Generate Report", self)
         report_action.setStatusTip("Generate PDF forensic report")
@@ -273,13 +378,13 @@ class MainWindow(QMainWindow):
         if file_name:
             self.current_dump_path = file_name
             self.statusBar().showMessage(f"Loading: {file_name}...")
-            
+
             # Load file in background to avoid freezing
             # Since loading might take time (automagics), we can use the worker too
             # But for now, let's just call it directly as it's usually fast enough for initial load
             # Or better, wrap it in a worker if it's slow. Automagics can be slow.
             # Let's run it in a thread.
-            
+
             self.run_worker(self.vol_wrapper.load_file, self.on_load_finished, file_name)
 
     def on_load_finished(self, result):
@@ -292,7 +397,7 @@ class MainWindow(QMainWindow):
             self.log_viewer.show()
         else:
             self.log_viewer.hide()
-            
+
     def toggle_queue(self, checked):
         if checked:
             self.queue_viewer.show()
@@ -307,7 +412,7 @@ class MainWindow(QMainWindow):
         # Create task for the plugin
         task_id = str(uuid.uuid4())
         task_name = plugin_name.split('.')[-1]  # Use last part of plugin name as task name
-        
+
         task = InvestigationTask(
             task_id,
             task_name,
@@ -316,14 +421,14 @@ class MainWindow(QMainWindow):
             plugin_name
         )
         task.callback = callback
-        
+
         # Add to queue
         self.investigation_queue.add_task(task)
         self.statusBar().showMessage(f"Added {task_name} to queue")
-        
+
         # Ensure queue viewer is updated (it listens to signals)
         self.queue_viewer.show()
-        
+
         # Start processing if not already running
         if not self.investigation_worker:
             self.process_next_task()
@@ -336,7 +441,7 @@ class MainWindow(QMainWindow):
 
         self.progress_bar.setValue(0)
         self.progress_bar.setVisible(True)
-        
+
         self.worker = PluginWorker(func, *args, **kwargs)
         self.worker.started.connect(lambda: self.statusBar().showMessage("Processing..."))
         self.worker.finished.connect(lambda result: self.on_worker_finished(result, callback))
@@ -349,7 +454,7 @@ class MainWindow(QMainWindow):
         if not self.investigation_queue.active_task_ids:
             self.progress_bar.setVisible(False)
             self.statusBar().showMessage("Ready")
-            
+
         if callback:
             callback(result)
         self.worker = None
@@ -359,7 +464,7 @@ class MainWindow(QMainWindow):
         if not self.investigation_queue.active_task_ids:
             self.progress_bar.setVisible(False)
             self.statusBar().showMessage("Error")
-            
+
         QMessageBox.critical(self, "Error", error_msg)
         self.worker = None
 
@@ -376,7 +481,7 @@ class MainWindow(QMainWindow):
         self.progress_bar.setVisible(True)
         self.progress_bar.setValue(0)
         self.statusBar().showMessage("Processing queue...")
-        
+
     def on_queue_completed(self):
         """Handle queue completion."""
         self.progress_bar.setVisible(False)
@@ -387,35 +492,35 @@ class MainWindow(QMainWindow):
         if not self.current_dump_path:
             QMessageBox.warning(self, "Error", "Please load a memory dump first.")
             return
-        
+
         pid = self.process_tab.get_selected_pid()
         if not pid:
             QMessageBox.warning(self, "Error", "Please select a process to dump.")
             return
-        
+
         # Ask user for output directory
         output_dir = QFileDialog.getExistingDirectory(self, "Select Output Directory")
         if not output_dir:
             return
-        
+
         self.statusBar().showMessage(f"Dumping process {pid}...")
-        
+
         # Run in worker
         self.run_worker(
-            self.vol_wrapper.dump_process, 
+            self.vol_wrapper.dump_process,
             lambda res: QMessageBox.information(self, "Success", f"Process {pid} dumped to:\n{res}"),
             self.current_dump_path, pid, output_dir
         )
-    
+
     def auto_investigate(self):
         """Run essential plugins automatically for quick triage."""
         if not self.current_dump_path:
             QMessageBox.warning(self, "Error", "Please load a memory dump first.")
             return
-            
+
         # Get plugin list from settings
         plugin_list = self.settings.get_auto_investigation_plugins()
-        
+
         # Check for running/pending tasks to avoid conflicts
         running_plugins = set()
         pending_plugins = set()
@@ -425,40 +530,40 @@ class MainWindow(QMainWindow):
                 running_plugins.add(task.plugin_name)
             elif task.status == TaskStatus.PENDING:
                 pending_plugins.add(task.plugin_name)
-        
+
         # Filter out already running/pending plugins
         new_plugins = [p for p in plugin_list if p not in running_plugins and p not in pending_plugins]
-        
+
         if not new_plugins:
-            QMessageBox.information(self, "Auto Investigation", 
+            QMessageBox.information(self, "Auto Investigation",
                 "All requested plugins are already running or queued.")
             return
-        
+
         # Build plugin display names for confirmation dialog
         plugin_names = []
         for plugin in new_plugins:
             name = plugin.split('.')[-1]  # Get last part (e.g., "PsList" from "windows.pslist.PsList")
             plugin_names.append(f"• {name}")
-        
+
         # Show warning if some plugins are skipped
         skip_msg = ""
         if len(new_plugins) < len(plugin_list):
             skipped = len(plugin_list) - len(new_plugins)
             skip_msg = f"\n\n({skipped} plugin(s) skipped - already running or queued)"
-        
+
         # Ask user for confirmation
         reply = QMessageBox.question(
-            self, 
+            self,
             "Auto Investigation",
-            f"Auto Investigation will run the following plugins:\n\n" +
+            "Auto Investigation will run the following plugins:\n\n" +
             "\n".join(plugin_names) + skip_msg + "\n\n" +
             "This may take several minutes. Continue?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
         )
-        
+
         if reply != QMessageBox.StandardButton.Yes:
             return
-        
+
         # Map plugins to their callbacks
         plugin_callbacks = {
             "windows.info.Info": self.osinfo_tab.update_display,
@@ -468,13 +573,13 @@ class MainWindow(QMainWindow):
             "windows.handles.Handles": lambda data: self.process_tab.update_table(data, plugin_name="Handles"),
             "windows.registry.hivelist.HiveList": lambda data: self.registry_tab.update_table(data, plugin_name="Hive List"),
         }
-        
+
         tasks = []
         for plugin_name in new_plugins:
             task_name = plugin_name.split('.')[-1]  # Extract simple name
             callback = plugin_callbacks.get(plugin_name, lambda data: None)  # Default to no-op
             tasks.append((task_name, plugin_name, callback))
-        
+
         for task_name, plugin_name, callback in tasks:
             task_id = str(uuid.uuid4())
             task = InvestigationTask(
@@ -486,13 +591,13 @@ class MainWindow(QMainWindow):
             )
             task.callback = callback  # Store callback for later use
             self.investigation_queue.add_task(task)
-            
+
         # Show queue viewer
         self.queue_viewer.show()
-        
+
         # Start processing queue
         self.process_next_task()
-        
+
     def run_gc_and_continue(self):
         """Run garbage collection in background then continue processing."""
         self.gc_worker = GarbageCollectionWorker()
@@ -508,13 +613,13 @@ class MainWindow(QMainWindow):
             return
 
         pending_tasks = self.investigation_queue.get_pending_tasks()
-        
+
         if not pending_tasks and not self.active_workers:
             # All tasks done and no workers running
             summary = self.investigation_queue.get_summary()
             msg = f"Investigation queue finished. Completed: {summary['completed']}, Failed: {summary['failed']}"
             self.statusBar().showMessage(msg)
-            
+
             # Only show popup if it was a significant batch (more than 1 task total)
             # or if we explicitly want to notify (like auto investigation)
             if summary['total'] > 1:
@@ -527,44 +632,44 @@ class MainWindow(QMainWindow):
                     f"Failed: {summary['failed']}"
                 )
             return
-            
+
         # Start tasks until we reach max concurrency or run out of pending tasks
         while pending_tasks and len(self.active_workers) < self.MAX_CONCURRENT_TASKS:
             # Get next task
             task = pending_tasks.pop(0)
             self.investigation_queue.mark_started(task.task_id)
-            
+
             # Create worker for this task
             worker = PluginWorker(task.func, *task.args, **task.kwargs)
             self.active_workers.append(worker)
             self.worker_map[task.task_id] = worker
-            
+
             # Define callbacks with closure to capture specific task and worker
             def on_task_complete(result, t=task, w=worker):
                 # Update callback with result
                 if hasattr(t, 'callback') and t.callback:
                     t.callback(result)
                 self.investigation_queue.mark_completed(t.task_id, result)
-                
+
                 # Clean up worker
                 if w in self.active_workers:
                     self.active_workers.remove(w)
                 if t.task_id in self.worker_map:
                     del self.worker_map[t.task_id]
-                
+
                 # Process next task (with intermediate GC for stability)
                 # Running GC in background prevents memory exhaustion while keeping UI responsive
                 self.run_gc_and_continue()
-                
+
             def on_task_error(error, t=task, w=worker):
                 self.investigation_queue.mark_failed(t.task_id, str(error))
-                
+
                 # Clean up worker
                 if w in self.active_workers:
                     self.active_workers.remove(w)
                 if t.task_id in self.worker_map:
                     del self.worker_map[t.task_id]
-                
+
                 # Continue with next task even if this one failed
                 self.process_next_task()
 
@@ -572,56 +677,56 @@ class MainWindow(QMainWindow):
             worker.error.connect(on_task_error)
             worker.progress.connect(lambda pct, msg, tid=task.task_id: self.investigation_queue.update_progress(tid, pct, msg))
             worker.start()
-    
+
     def pause_worker(self, task_id: str):
         """Pause/stop a worker for a specific task."""
         if task_id in self.worker_map:
             worker = self.worker_map[task_id]
-            
+
             # Note: We can't truly pause a running thread in Python
             # Instead, we disconnect signals and clean up
             # The task will be marked as paused and can be resumed later
-            
+
             try:
                 worker.finished.disconnect()
                 worker.error.disconnect()
                 worker.progress.disconnect()
             except:
                 pass  # Signals might already be disconnected
-            
+
             # Clean up
             if worker in self.active_workers:
                 self.active_workers.remove(worker)
             del self.worker_map[task_id]
-            
+
             # The worker will continue running but we won't process its results
             # When resumed, a new worker will be created
-    
+
     def generate_report(self):
         """Generate a PDF forensic report."""
         if not self.current_dump_path:
             QMessageBox.warning(self, "Error", "Please load a memory dump first.")
             return
-            
+
         # Show configuration dialog
         dialog = ReportConfigDialog(self)
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return
-            
+
         config = dialog.get_config()
-        
+
         # Collect data from tabs based on configuration
         system_info = None
         processes = None
         network = None
         registry = None
         files = None
-        
+
         if config['include_system_info']:
             # Get system info from OS Info tab
             if hasattr(self.osinfo_tab, 'system_info'):
                 system_info = self.osinfo_tab.system_info
-                
+
         if config['include_processes']:
             # Get process data from Process tab
             if hasattr(self.process_tab, 'plugin_data_cache'):
@@ -630,12 +735,12 @@ class MainWindow(QMainWindow):
                     if self.process_tab.plugin_data_cache.get(plugin_name):
                         processes = self.process_tab.plugin_data_cache[plugin_name]
                         break
-                        
+
         if config['include_network']:
             # Get network data
             if hasattr(self.network_tab, 'current_data'):
                 network = self.network_tab.current_data
-                
+
         if config['include_registry']:
             # Get registry data
             if hasattr(self.registry_tab, 'plugin_data_cache'):
@@ -643,12 +748,12 @@ class MainWindow(QMainWindow):
                     if self.registry_tab.plugin_data_cache.get(plugin_name):
                         registry = self.registry_tab.plugin_data_cache[plugin_name]
                         break
-                        
+
         if config['include_files']:
             # Get file data
             if hasattr(self.files_tab, 'current_data'):
                 files = self.files_tab.current_data
-        
+
         # Check if we have any data
         if not any([system_info, processes, network, registry, files]):
             reply = QMessageBox.question(
@@ -660,10 +765,10 @@ class MainWindow(QMainWindow):
             if reply == QMessageBox.StandardButton.Yes:
                 self.auto_investigate()
             return
-        
+
         # Generate the report
         self.statusBar().showMessage("Generating PDF report...")
-        
+
         try:
             success = PDFReportGenerator.create_forensic_report(
                 output_path=config['output_path'],
@@ -677,7 +782,7 @@ class MainWindow(QMainWindow):
                 analyst=config['analyst'],
                 notes=config['notes']
             )
-            
+
             if success:
                 self.statusBar().showMessage("Report generated successfully!")
                 QMessageBox.information(
@@ -699,41 +804,41 @@ class MainWindow(QMainWindow):
                 "Error",
                 f"Failed to generate PDF report:\n{str(e)}"
             )
-    
+
     def generate_timeline_from_data(self):
         """Generate timeline from cached analysis data."""
         if not self.current_dump_path:
             QMessageBox.warning(self, "Error", "Please load a memory dump first.")
             return
-            
+
         # Collect data from tabs
         process_data = None
         network_data = None
         file_data = None
         registry_data = None
-        
+
         # Get process data
         if hasattr(self.process_tab, 'plugin_data_cache'):
             for plugin_name in ['PS List', 'PS Scan', 'PS Tree']:
                 if self.process_tab.plugin_data_cache.get(plugin_name):
                     process_data = self.process_tab.plugin_data_cache[plugin_name]
                     break
-                    
+
         # Get network data
         if hasattr(self.network_tab, 'current_data'):
             network_data = self.network_tab.current_data
-            
+
         # Get file data
         if hasattr(self.files_tab, 'current_data'):
             file_data = self.files_tab.current_data
-            
+
         # Get registry data
         if hasattr(self.registry_tab, 'plugin_data_cache'):
             for plugin_name in ['Hive List', 'Hive Scan']:
                 if self.registry_tab.plugin_data_cache.get(plugin_name):
                     registry_data = self.registry_tab.plugin_data_cache[plugin_name]
                     break
-        
+
         # Check if we have any data
         if not any([process_data, network_data, file_data, registry_data]):
             reply = QMessageBox.question(
@@ -745,7 +850,7 @@ class MainWindow(QMainWindow):
             if reply == QMessageBox.StandardButton.Yes:
                 self.auto_investigate()
             return
-            
+
         # Generate timeline
         self.timeline_tab.load_data(
             process_data=process_data,
@@ -753,28 +858,28 @@ class MainWindow(QMainWindow):
             file_data=file_data,
             registry_data=registry_data
         )
-        
+
         # Switch to timeline tab
         self.tabs.setCurrentWidget(self.timeline_tab)
-    
+
     def open_settings(self):
         """Open comprehensive settings dialog."""
         # Get VT scanner if available
         vt_scanner = None
         if hasattr(self, 'virustotal_tab') and hasattr(self.virustotal_tab, 'scanner'):
             vt_scanner = self.virustotal_tab.scanner
-            
+
         dialog = SettingsDialog(self.settings, vt_scanner, self)
         if dialog.exec():
             # Settings were saved, apply them
             self.apply_settings()
             QMessageBox.information(self, "Settings Saved", "Settings have been saved successfully.\n\nSome changes may require a restart to take effect.")
-            
+
     def apply_settings(self):
         """Apply settings to various components."""
         # Update max concurrent tasks
         self.MAX_CONCURRENT_TASKS = self.settings.get_max_concurrent_tasks()
-        
+
         # Update VirusTotal scanner API key
         if hasattr(self, 'virustotal_tab') and hasattr(self.virustotal_tab, 'scanner'):
             api_key = self.settings.get_vt_api_key()
@@ -786,37 +891,37 @@ class MainWindow(QMainWindow):
         if not self.current_dump_path:
             QMessageBox.warning(self, "Error", "Please load a memory dump first.")
             return
-            
+
         # Collect data from all tabs
         all_matches = []
         scanner = self.ioc_tab.scanner
-        
+
         # Scan Process Data
         # We need to check all cached process data
         for plugin, data in self.process_tab.plugin_data_cache.items():
             if data:
                 matches = scanner.scan_data(data, f"Process: {plugin}")
                 all_matches.extend(matches)
-                
+
         # Scan Network Data
         if hasattr(self.network_tab, 'current_data') and self.network_tab.current_data:
             matches = scanner.scan_data(self.network_tab.current_data, "Network Scan")
             all_matches.extend(matches)
-            
+
         # Scan File Data
         if hasattr(self.files_tab, 'current_data') and self.files_tab.current_data:
             matches = scanner.scan_data(self.files_tab.current_data, "File Scan")
             all_matches.extend(matches)
-            
+
         # Scan Registry Data
         for plugin, data in self.registry_tab.plugin_data_cache.items():
             if data:
                 matches = scanner.scan_data(data, f"Registry: {plugin}")
                 all_matches.extend(matches)
-                
+
         # Display results
         self.ioc_tab.display_results(all_matches)
-        
+
         if not all_matches:
             QMessageBox.information(self, "Scan Complete", "No IOC matches found in the currently loaded data.")
         else:

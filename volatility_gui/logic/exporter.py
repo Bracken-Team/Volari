@@ -1,7 +1,7 @@
 import json
 import csv
 import html
-from typing import List, Dict, Any, Tuple, Optional
+from typing import List, Dict, Any, Tuple
 
 class Exporter:
     """Helper class to export data to various formats."""
@@ -9,16 +9,16 @@ class Exporter:
     @staticmethod
     def export_to_json(data: List[Dict[str, Any]], filename: str) -> Tuple[bool, str]:
         """Export data to a JSON file.
-        
+
         Returns:
             Tuple of (success: bool, message: str)
         """
         if not data:
             return False, "No data to export"
-            
+
         if not filename:
             return False, "No filename specified"
-            
+
         try:
             with open(filename, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=4, default=str)
@@ -33,23 +33,23 @@ class Exporter:
     @staticmethod
     def export_to_csv(data: List[Dict[str, Any]], filename: str) -> Tuple[bool, str]:
         """Export data to a CSV file.
-        
+
         Returns:
             Tuple of (success: bool, message: str)
         """
         if not data:
             return False, "No data to export"
-            
+
         if not filename:
             return False, "No filename specified"
-            
+
         try:
             # Get all unique keys from all dictionaries to ensure all columns are present
             keys = set()
             for item in data:
                 keys.update(item.keys())
             fieldnames = sorted(list(keys))
-            
+
             with open(filename, 'w', newline='', encoding='utf-8') as f:
                 writer = csv.DictWriter(f, fieldnames=fieldnames)
                 writer.writeheader()
@@ -65,28 +65,28 @@ class Exporter:
     @staticmethod
     def export_to_html(data: List[Dict[str, Any]], filename: str, title: str = "Exported Data") -> Tuple[bool, str]:
         """Export data to an HTML file.
-        
+
         Args:
             data: List of dictionaries to export
             filename: Output file path
             title: Title for the HTML page
-            
+
         Returns:
             Tuple of (success: bool, message: str)
         """
         if not data:
             return False, "No data to export"
-            
+
         if not filename:
             return False, "No filename specified"
-            
+
         try:
             # Get all unique keys
             keys = set()
             for item in data:
                 keys.update(item.keys())
             headers = sorted(list(keys))
-            
+
             html_content = [
                 "<!DOCTYPE html>",
                 "<html>",
@@ -110,12 +110,12 @@ class Exporter:
                 "<thead>",
                 "<tr>"
             ]
-            
+
             # Add headers
             for header in headers:
                 html_content.append(f"<th>{html.escape(header)}</th>")
             html_content.append("</tr></thead><tbody>")
-            
+
             # Add rows
             for item in data:
                 html_content.append("<tr>")
@@ -123,9 +123,9 @@ class Exporter:
                     value = str(item.get(header, ""))
                     html_content.append(f"<td>{html.escape(value)}</td>")
                 html_content.append("</tr>")
-                
+
             html_content.append("</tbody></table></body></html>")
-            
+
             with open(filename, 'w', encoding='utf-8') as f:
                 f.write("\n".join(html_content))
             return True, f"Successfully exported {len(data)} items to {filename}"

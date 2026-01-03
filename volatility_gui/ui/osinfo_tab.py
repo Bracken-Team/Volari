@@ -1,7 +1,6 @@
-from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QPushButton, QHBoxLayout, 
-                             QLabel, QScrollArea, QGroupBox, QFormLayout, QGridLayout, QFrame, QSizePolicy, QLineEdit)
+from PyQt6.QtWidgets import (QWidget, QVBoxLayout, QPushButton, QHBoxLayout,
+                             QLabel, QScrollArea, QGroupBox, QFormLayout, QGridLayout, QFrame)
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QFont
 
 class OSInfoTab(QWidget):
     def __init__(self):
@@ -10,31 +9,31 @@ class OSInfoTab(QWidget):
 
     def init_ui(self):
         layout = QVBoxLayout(self)
-        
+
         # 1. Controls area (Header)
         controls_layout = QHBoxLayout()
         self.status_label = QLabel("Ready to analyze")
         controls_layout.addWidget(self.status_label)
         controls_layout.addStretch()
-        
+
         self.refresh_btn = QPushButton("Get OS Info")
         controls_layout.addWidget(self.refresh_btn)
-        
+
         layout.addLayout(controls_layout)
-        
+
         # 2. Main Content Area (Scrollable Dashboard)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
-        
+
         self.dashboard_widget = QWidget()
         self.dashboard_layout = QGridLayout(self.dashboard_widget)
         self.dashboard_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.dashboard_layout.setSpacing(20)
-        
+
         scroll.setWidget(self.dashboard_widget)
         layout.addWidget(scroll)
-        
+
         # Initialize groups (hidden until data loaded)
         self.groups = {}
 
@@ -46,21 +45,21 @@ class OSInfoTab(QWidget):
         layout = QFormLayout()
         layout.setLabelAlignment(Qt.AlignmentFlag.AlignLeft)
         layout.setFormAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignTop)
-        
+
         for key, value in items:
             key_label = QLabel(f"{key}:")
             # Remove hardcoded color, rely on system theme
             key_label.setStyleSheet("font-weight: bold;")
-            
+
             # Use QLabel with word wrap instead of QLineEdit to prevent cutoff
             val_str = str(value)
             value_label = QLabel(val_str)
             value_label.setWordWrap(True)
             value_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
             value_label.setToolTip(val_str)
-            
+
             layout.addRow(key_label, value_label)
-            
+
         group.setLayout(layout)
         self.dashboard_layout.addWidget(group, row, col)
         return group
@@ -70,20 +69,20 @@ class OSInfoTab(QWidget):
         if not data:
             self.status_label.setText("No OS information found")
             return
-            
+
         # Clear existing layout items
         while self.dashboard_layout.count():
             item = self.dashboard_layout.takeAt(0)
             widget = item.widget()
             if widget:
                 widget.deleteLater()
-        
+
         # Consolidate list of dicts into one dict
         info = {}
         # Debug: Print first row to understand structure
         if data:
             print(f"DEBUG: First row data: {data[0]}")
-        
+
         for row in data:
             if isinstance(row, dict):
                 # Check for standard Key/Value or Variable/Value structure typical of windows.info
@@ -113,21 +112,21 @@ class OSInfoTab(QWidget):
         # Categorize Data
         # Note: Added more specific keys commonly seen in windows.info
         system_keys = ["NTBuild", "Major", "Minor", "Platform", "ServicePack", "KdCopyDataBlock", "System Root", "Strict"]
-        time_keys = ["SystemTime", "BootTime", "TimeDateStamp", "PE TimeDateStamp"] 
+        time_keys = ["SystemTime", "BootTime", "TimeDateStamp", "PE TimeDateStamp"]
         kernel_keys = ["KernelBase", "KDBG", "KPCR", "Prcb", "Idt", "Gdt", "TSS", "DTB"]
         config_keys = ["LayerName", "SymbolTable", "Is64Bit", "Symbols"]
-        
+
         # Build Groups
         system_data = []
         time_data = []
         kernel_data = []
         config_data = []
         other_data = []
-        
+
         for key, value in info.items():
             # Clean key for matching (remove spaces, lower case check maybe?)
-            k_clean = key.replace(" ", "") 
-            
+            k_clean = key.replace(" ", "")
+
             # Categorization Logic
             if any(x in k_clean for x in system_keys) or "Version" in key:
                 system_data.append((key, value))
@@ -139,28 +138,28 @@ class OSInfoTab(QWidget):
                 config_data.append((key, value))
             else:
                 other_data.append((key, value))
-                
+
         # Create Widgets
         row = 0
         if system_data:
             self.create_group("System Version", system_data, row, 0)
-        
+
         if time_data:
             self.create_group("Time Information", time_data, row, 1)
-            
+
         row += 1
         if kernel_data:
             self.create_group("Kernel Core", kernel_data, row, 0)
-            
+
         if config_data:
             self.create_group("Configuration & Paths", config_data, row, 1)
-            
+
         row += 1
         if other_data:
             # Span 'Other' across full width if it's the last one
             group = self.create_group("Additional Information", other_data, row, 0)
             self.dashboard_layout.addWidget(group, row, 0, 1, 2)
-        
+
         # Update button text to "Refresh" since we have data
         self.refresh_btn.setText("Refresh")
         self.status_label.setText(f"OS details loaded ({len(info)} properties)")

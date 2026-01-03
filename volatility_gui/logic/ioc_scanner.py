@@ -2,7 +2,7 @@ import re
 import csv
 import json
 import logging
-from typing import List, Dict, Any, Set, Tuple
+from typing import List, Dict, Any, Set
 
 vollog = logging.getLogger(__name__)
 
@@ -11,7 +11,7 @@ class IOCScanner:
     Scanner for Indicators of Compromise (IOCs).
     Scans extracted forensic data for matches against a list of IOCs.
     """
-    
+
     def __init__(self):
         self.iocs: Dict[str, Set[str]] = {
             'IP': set(),
@@ -19,40 +19,40 @@ class IOCScanner:
             'Hash': set(),
             'Keyword': set()
         }
-        
+
     def add_ioc(self, value: str, ioc_type: str = None):
         """
         Add a single IOC.
-        
+
         Args:
             value: The IOC string
-            ioc_type: Type of IOC (IP, Domain, Hash, Keyword). 
+            ioc_type: Type of IOC (IP, Domain, Hash, Keyword).
                       If None, attempts to auto-detect.
         """
         value = value.strip()
         if not value:
             return
-            
+
         if not ioc_type:
             ioc_type = self._detect_type(value)
-            
+
         if ioc_type in self.iocs:
             self.iocs[ioc_type].add(value)
-            
+
     def remove_ioc(self, value: str, ioc_type: str):
         """Remove an IOC."""
         if ioc_type in self.iocs and value in self.iocs[ioc_type]:
             self.iocs[ioc_type].remove(value)
-            
+
     def clear_iocs(self):
         """Clear all IOCs."""
         for key in self.iocs:
             self.iocs[key].clear()
-            
+
     def load_from_file(self, file_path: str):
         """
         Load IOCs from a file (CSV, JSON, or TXT).
-        
+
         Args:
             file_path: Path to the file
         """
@@ -75,7 +75,7 @@ class IOCScanner:
                                 type_ = item.get('type')
                                 if val:
                                     self.add_ioc(val, type_)
-                                    
+
             elif file_path.lower().endswith('.csv'):
                 with open(file_path, 'r') as f:
                     reader = csv.reader(f)
@@ -86,26 +86,26 @@ class IOCScanner:
                         val = row[0]
                         type_ = row[1] if len(row) > 1 else None
                         self.add_ioc(val, type_)
-                        
+
             else: # TXT or other, assume one per line
                 with open(file_path, 'r') as f:
                     for line in f:
                         self.add_ioc(line.strip())
-                        
+
             vollog.info(f"Loaded IOCs from {file_path}")
-            
+
         except Exception as e:
             vollog.error(f"Error loading IOCs from {file_path}: {e}")
             raise
-            
+
     def scan_data(self, data: List[Dict[str, Any]], source_name: str) -> List[Dict[str, Any]]:
         """
         Scan a list of dictionaries for IOC matches.
-        
+
         Args:
             data: List of data items (e.g., process list rows)
             source_name: Name of the source (e.g., "Process List")
-            
+
         Returns:
             List of matches. Each match is a dict with:
             - Type: IOC type
@@ -115,14 +115,14 @@ class IOCScanner:
             - Field: The specific field where it was found
         """
         matches = []
-        
+
         if not data:
             return matches
-            
+
         for row in data:
             # Convert row values to string for searching
             row_str = str(row)
-            
+
             # Check each IOC type
             for ioc_type, values in self.iocs.items():
                 for ioc in values:
@@ -135,7 +135,7 @@ class IOCScanner:
                             if ioc in str(v):
                                 matched_field = k
                                 break
-                                
+
                         matches.append({
                             'Type': ioc_type,
                             'Value': ioc,
@@ -143,28 +143,28 @@ class IOCScanner:
                             'Context': self._get_context(row),
                             'Field': matched_field
                         })
-                        
+
         return matches
-        
+
     def _detect_type(self, value: str) -> str:
         """Auto-detect IOC type."""
         # IP Address (IPv4)
         if re.match(r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$', value):
             return 'IP'
-            
+
         # Hash (MD5, SHA1, SHA256)
         if re.match(r'^[a-fA-F0-9]{32}$', value) or \
            re.match(r'^[a-fA-F0-9]{40}$', value) or \
            re.match(r'^[a-fA-F0-9]{64}$', value):
             return 'Hash'
-            
+
         # Domain (simple check)
         if re.match(r'^[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$', value):
             return 'Domain'
-            
+
         # Default to Keyword
         return 'Keyword'
-        
+
     def _normalize_key(self, key: str) -> str:
         """Normalize JSON keys to internal types."""
         key = key.lower()
@@ -172,7 +172,7 @@ class IOCScanner:
         if 'domain' in key or 'url' in key or 'host' in key: return 'Domain'
         if 'hash' in key or 'md5' in key or 'sha' in key: return 'Hash'
         return 'Keyword'
-        
+
     def _get_context(self, row: Dict[str, Any]) -> str:
         """Generate a human-readable context string from a data row."""
         # Try to find identifying info like PID, Name, etc.
@@ -182,7 +182,7 @@ class IOCScanner:
         if 'ImageFileName' in row: parts.append(f"Image: {row['ImageFileName']}")
         if 'Name' in row: parts.append(f"Name: {row['Name']}")
         if 'Path' in row: parts.append(f"Path: {row['Path']}")
-        
+
         if parts:
             return ", ".join(parts)
         else:

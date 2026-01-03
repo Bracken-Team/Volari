@@ -20,6 +20,9 @@ block_cipher = None
 spec_dir = os.path.dirname(os.path.abspath(SPEC))
 sys.path.insert(0, spec_dir)
 
+# Icon path for macOS
+icon_path = os.path.join(spec_dir, 'volatility_gui', 'resources', 'Volari.icns')
+
 # Collect dynamic libraries
 binaries = []
 try:
@@ -37,6 +40,11 @@ volatility_data = (
     collect_data_files('volatility3.schemas') +
     collect_data_files('volatility3.plugins', include_py_files=True)
 )
+
+# GUI resources
+gui_data = [
+    (os.path.join(spec_dir, 'volatility_gui', 'resources'), 'volatility_gui/resources'),
+]
 
 volatility_imports = (
     collect_submodules('volatility3.framework.automagic') +
@@ -65,6 +73,11 @@ gui_imports = [
     'volatility_gui',
     'volatility_gui.ui',
     'volatility_gui.logic',
+    # PyObjC for macOS window customization
+    'objc',
+    'AppKit',
+    'Foundation',
+    'Cocoa',
 ]
 
 # Main analysis
@@ -72,7 +85,7 @@ a = Analysis(
     ['volatility_gui/main.py'],
     pathex=[spec_dir],
     binaries=binaries,
-    datas=volatility_data,
+    datas=volatility_data + gui_data,
     hiddenimports=volatility_imports + gui_imports,
     hookspath=[],
     hooksconfig={},
@@ -125,16 +138,18 @@ if sys.platform == 'darwin':
     app = BUNDLE(
         coll,
         name='Volari.app',
-        icon=None,  # Note: macOS requires .icns format, not .ico
-        bundle_identifier='com.volari.app',
+        icon=icon_path,  # Use the .icns icon
+        bundle_identifier='org.volatility.volari',
         info_plist={
             'CFBundleName': 'Volari',
             'CFBundleDisplayName': 'Volari',
             'CFBundleVersion': '1.0.0',
             'CFBundleShortVersionString': '1.0.0',
+            'CFBundleExecutable': 'Volari',
             'NSHighResolutionCapable': True,
             'NSRequiresAquaSystemAppearance': False,  # Support dark mode
             'LSMinimumSystemVersion': '10.13.0',
+            'LSApplicationCategoryType': 'public.app-category.utilities',
         },
     )
 
@@ -160,29 +175,36 @@ elif sys.platform == 'win32':
         target_arch=None,
         codesign_identity=None,
         entitlements_file=None,
-        icon=os.path.join(spec_dir, 'doc', 'source', '_static', 'favicon.ico'),
+        icon=os.path.join(spec_dir, 'volatility_gui', 'resources', 'volari.ico'),
     )
 
 else:
-    # Linux: Build as standalone executable
+    # Linux: Build as directory (for AppImage)
     exe = EXE(
         pyz,
         a.scripts,
-        a.binaries,
-        a.zipfiles,
-        a.datas,
         [],
+        exclude_binaries=True,
         name='volari',
         debug=False,
         bootloader_ignore_signals=False,
         strip=False,
         upx=True,
-        upx_exclude=[],
-        runtime_tmpdir=None,
         console=False,
         disable_windowed_traceback=False,
         argv_emulation=False,
         target_arch=None,
         codesign_identity=None,
         entitlements_file=None,
+    )
+
+    coll = COLLECT(
+        exe,
+        a.binaries,
+        a.zipfiles,
+        a.datas,
+        strip=False,
+        upx=True,
+        upx_exclude=[],
+        name='volari',
     )

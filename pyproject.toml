@@ -58,6 +58,17 @@ docs = [
     "sphinx-rtd-theme>=3.0.1,<4",
 ]
 
+gui = [
+    "volatility3[full]",
+    "PyQt6>=6.0.0",
+    "matplotlib>=3.0.0",
+    "reportlab>=3.0.0",
+    "vt-py>=0.18.0",
+    "requests>=2.0.0",
+    "pyobjc-core>=10.0; sys_platform == 'darwin'",
+    "pyobjc-framework-Cocoa>=10.0; sys_platform == 'darwin'",
+]
+
 [project.urls]
 homepage = "https://github.com/volatilityfoundation/volatility3/"
 documentation = "https://volatility3.readthedocs.io/"
@@ -67,12 +78,13 @@ issues = "https://github.com/volatilityfoundation/volatility3/issues"
 [project.scripts]
 vol = "volatility3.cli:main"
 volshell = "volatility3.cli.volshell:main"
+volari = "volatility_gui.main:main"
 
 [tool.setuptools.dynamic]
 version = { attr = "volatility3.framework.constants._version.PACKAGE_VERSION" }
 
 [tool.setuptools.packages.find]
-include = ["volatility3*"]
+include = ["volatility3*", "volatility_gui*"]
 
 [tool.mypy]
 mypy_path = "./stubs"

@@ -8,36 +8,35 @@ class LogSignal(QObject):
 
 class QtLogHandler(logging.Handler):
     """Custom logging handler that emits a signal for each log record."""
-    
+
     def __init__(self):
         super().__init__()
         self.signal = LogSignal()
-        
+
     def emit(self, record):
         msg = self.format(record)
         self.signal.log_record.emit(msg)
 
 class LogViewer(QDockWidget):
     """Dock widget for displaying logs."""
-    
+
     def __init__(self, parent=None):
         super().__init__("Logs", parent)
         self.setAllowedAreas(
             Qt.DockWidgetArea.BottomDockWidgetArea | Qt.DockWidgetArea.TopDockWidgetArea
         )
-        
+
         # Enable close, float, and move features
         self.setFeatures(
             QDockWidget.DockWidgetFeature.DockWidgetClosable |
             QDockWidget.DockWidgetFeature.DockWidgetFloatable |
             QDockWidget.DockWidgetFeature.DockWidgetMovable
         )
-        
-        # Tokyo Night theme styling
+
+        # Minimal styling - let global styles handle most things
         self.setStyleSheet("""
             QDockWidget {
                 background-color: #1a1b26;
-                color: #c0caf5;
             }
             QDockWidget::title {
                 background-color: #24283b;
@@ -45,23 +44,14 @@ class LogViewer(QDockWidget):
                 padding: 8px;
                 font-weight: bold;
             }
-            QDockWidget::close-button, QDockWidget::float-button {
-                background: #414868;
-                border: none;
-                border-radius: 4px;
-                padding: 4px;
-            }
-            QDockWidget::close-button:hover, QDockWidget::float-button:hover {
-                background: #7aa2f7;
-            }
         """)
-        
+
         # Main widget
         widget = QWidget()
         widget.setStyleSheet("background-color: #1a1b26;")
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(0, 0, 0, 0)
-        
+
         # Text area with dark theme
         self.text_edit = QTextEdit()
         self.text_edit.setReadOnly(True)
@@ -76,18 +66,18 @@ class LogViewer(QDockWidget):
             }
         """)
         layout.addWidget(self.text_edit)
-        
+
         self.setWidget(widget)
-        
+
         # Setup logging
         self.handler = QtLogHandler()
         self.handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
         self.handler.signal.log_record.connect(self.append_log)
-        
+
         # Add handler to root logger
         logging.getLogger().addHandler(self.handler)
         logging.getLogger().setLevel(logging.INFO)
-        
+
     def append_log(self, msg):
         """Append log message to the text area."""
         self.text_edit.append(msg)
@@ -95,7 +85,7 @@ class LogViewer(QDockWidget):
         cursor = self.text_edit.textCursor()
         cursor.movePosition(cursor.MoveOperation.End)
         self.text_edit.setTextCursor(cursor)
-        
+
     def closeEvent(self, event):
         """Remove handler when widget is closed (or hidden)."""
         # We might want to keep capturing logs even if hidden, so maybe don't remove handler here.

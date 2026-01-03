@@ -10,41 +10,41 @@ from PyQt6.QtCore import Qt, QRectF, QPointF
 
 class ModernIcons:
     """Modern flat icons using QPainter paths rendered to QIcon."""
-    
+
     # Default colors from Tokyo Night theme
     DEFAULT_COLOR = "#c0caf5"
     ACCENT_COLOR = "#7aa2f7"
-    
+
     @staticmethod
     def _create_icon_from_painter(paint_func, color: str = None, size: int = 20) -> QIcon:
         """Create a QIcon by painting with the given function."""
         if color is None:
             color = ModernIcons.DEFAULT_COLOR
-            
+
         pixmap = QPixmap(size, size)
         pixmap.fill(Qt.GlobalColor.transparent)
-        
+
         painter = QPainter(pixmap)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        
+
         pen = QPen(QColor(color))
         pen.setWidthF(1.5)
         pen.setCapStyle(Qt.PenCapStyle.RoundCap)
         pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
         painter.setPen(pen)
         painter.setBrush(Qt.BrushStyle.NoBrush)
-        
+
         # Scale factor for drawing (leave padding)
         margin = 2
         scale = (size - margin * 2) / 24.0
         painter.translate(margin, margin)
         painter.scale(scale, scale)
-        
+
         paint_func(painter)
         painter.end()
-        
+
         return QIcon(pixmap)
-    
+
     @staticmethod
     def folder_open(color: str = None) -> QIcon:
         """Folder open icon."""
@@ -63,7 +63,7 @@ class ModernIcons:
             p.drawLine(QPointF(2, 6), QPointF(8, 6))
             p.drawLine(QPointF(8, 6), QPointF(10, 8))
         return ModernIcons._create_icon_from_painter(paint, color)
-    
+
     @staticmethod
     def file(color: str = None) -> QIcon:
         """File/document icon."""
@@ -80,7 +80,7 @@ class ModernIcons:
             p.drawLine(QPointF(12, 2), QPointF(12, 8))
             p.drawLine(QPointF(12, 8), QPointF(18, 8))
         return ModernIcons._create_icon_from_painter(paint, color)
-    
+
     @staticmethod
     def save(color: str = None) -> QIcon:
         """Save/disk icon."""
@@ -94,7 +94,7 @@ class ModernIcons:
             # Label area
             p.drawRect(QRectF(6, 12, 12, 6))
         return ModernIcons._create_icon_from_painter(paint, color)
-    
+
     @staticmethod
     def settings(color: str = None) -> QIcon:
         """Settings/gear icon."""
@@ -104,7 +104,7 @@ class ModernIcons:
             center = QPointF(12, 12)
             outer_r = 9
             inner_r = 5
-            
+
             # Draw gear teeth as lines radiating out
             for i in range(6):
                 angle = i * math.pi / 3
@@ -113,13 +113,13 @@ class ModernIcons:
                 x2 = center.x() + outer_r * math.cos(angle)
                 y2 = center.y() + outer_r * math.sin(angle)
                 p.drawLine(QPointF(x1, y1), QPointF(x2, y2))
-            
+
             # Center circle
             p.drawEllipse(center, 4, 4)
             # Outer circle
             p.drawEllipse(center, 7, 7)
         return ModernIcons._create_icon_from_painter(paint, color)
-    
+
     @staticmethod
     def search(color: str = None) -> QIcon:
         """Search/magnifying glass icon."""
@@ -129,7 +129,7 @@ class ModernIcons:
             # Handle
             p.drawLine(QPointF(14, 14), QPointF(21, 21))
         return ModernIcons._create_icon_from_painter(paint, color)
-    
+
     @staticmethod
     def process(color: str = None) -> QIcon:
         """Process/CPU icon."""
@@ -153,7 +153,7 @@ class ModernIcons:
             p.drawLine(QPointF(18, 12), QPointF(21, 12))
             p.drawLine(QPointF(18, 15), QPointF(21, 15))
         return ModernIcons._create_icon_from_painter(paint, color)
-    
+
     @staticmethod
     def network(color: str = None) -> QIcon:
         """Network/globe icon."""
@@ -165,7 +165,7 @@ class ModernIcons:
             # Vertical ellipse
             p.drawEllipse(QRectF(8, 2, 8, 20))
         return ModernIcons._create_icon_from_painter(paint, color)
-    
+
     @staticmethod
     def registry(color: str = None) -> QIcon:
         """Registry/database icon."""
@@ -178,7 +178,7 @@ class ModernIcons:
             p.drawLine(QPointF(3, 6), QPointF(3, 18))
             p.drawLine(QPointF(21, 6), QPointF(21, 18))
         return ModernIcons._create_icon_from_painter(paint, color)
-    
+
     @staticmethod
     def timeline(color: str = None) -> QIcon:
         """Timeline/calendar icon."""
@@ -197,7 +197,7 @@ class ModernIcons:
             p.drawPoint(QPointF(7, 17))
             p.drawPoint(QPointF(12, 17))
         return ModernIcons._create_icon_from_painter(paint, color)
-    
+
     @staticmethod
     def malware(color: str = None) -> QIcon:
         """Malware/bug icon."""
@@ -218,7 +218,7 @@ class ModernIcons:
             p.drawLine(QPointF(10, 4), QPointF(7, 1))
             p.drawLine(QPointF(14, 4), QPointF(17, 1))
         return ModernIcons._create_icon_from_painter(paint, color)
-    
+
     @staticmethod
     def ioc(color: str = None) -> QIcon:
         """IOC/target icon."""
@@ -228,7 +228,7 @@ class ModernIcons:
             p.drawEllipse(QRectF(6, 6, 12, 12))
             p.drawEllipse(QRectF(10, 10, 4, 4))
         return ModernIcons._create_icon_from_painter(paint, color)
-    
+
     @staticmethod
     def virustotal(color: str = None) -> QIcon:
         """VirusTotal/shield-scan icon."""
@@ -247,7 +247,7 @@ class ModernIcons:
             p.drawLine(QPointF(8, 12), QPointF(11, 15))
             p.drawLine(QPointF(11, 15), QPointF(16, 9))
         return ModernIcons._create_icon_from_painter(paint, color)
-    
+
     @staticmethod
     def logs(color: str = None) -> QIcon:
         """Logs/list icon."""
@@ -258,7 +258,7 @@ class ModernIcons:
             p.drawLine(QPointF(3, 14), QPointF(21, 14))
             p.drawLine(QPointF(3, 18), QPointF(21, 18))
         return ModernIcons._create_icon_from_painter(paint, color)
-    
+
     @staticmethod
     def queue(color: str = None) -> QIcon:
         """Queue/layers icon."""
@@ -268,7 +268,7 @@ class ModernIcons:
             p.drawRect(QRectF(4, 9, 16, 4))
             p.drawRect(QRectF(4, 16, 16, 4))
         return ModernIcons._create_icon_from_painter(paint, color)
-    
+
     @staticmethod
     def chart(color: str = None) -> QIcon:
         """Chart icon."""
@@ -278,7 +278,7 @@ class ModernIcons:
             p.drawRect(QRectF(10, 8, 4, 13))
             p.drawRect(QRectF(16, 3, 4, 18))
         return ModernIcons._create_icon_from_painter(paint, color)
-    
+
     @staticmethod
     def export(color: str = None) -> QIcon:
         """Export/upload icon."""
@@ -295,7 +295,7 @@ class ModernIcons:
             path.lineTo(20, 14)
             p.drawPath(path)
         return ModernIcons._create_icon_from_painter(paint, color)
-    
+
     @staticmethod
     def report(color: str = None) -> QIcon:
         """Report/document with lines icon."""
@@ -317,7 +317,7 @@ class ModernIcons:
             p.drawLine(QPointF(9, 16), QPointF(15, 16))
             p.drawLine(QPointF(9, 19), QPointF(13, 19))
         return ModernIcons._create_icon_from_painter(paint, color)
-    
+
     @staticmethod
     def investigate(color: str = None) -> QIcon:
         """Investigate/magnifying glass with user icon."""
@@ -329,7 +329,7 @@ class ModernIcons:
             p.drawEllipse(QRectF(5, 6, 7, 4))
             p.drawEllipse(QRectF(7, 7, 2, 2))
         return ModernIcons._create_icon_from_painter(paint, color)
-    
+
     @staticmethod
     def os_info(color: str = None) -> QIcon:
         """OS/Monitor icon."""
@@ -341,12 +341,11 @@ class ModernIcons:
             p.drawLine(QPointF(16, 17), QPointF(16, 20))
             p.drawLine(QPointF(6, 20), QPointF(18, 20))
         return ModernIcons._create_icon_from_painter(paint, color)
-    
+
     @staticmethod
     def refresh(color: str = None) -> QIcon:
         """Refresh/reload icon."""
         def paint(p: QPainter):
-            import math
             # Circular arrow
             path = QPainterPath()
             path.arcMoveTo(QRectF(3, 3, 18, 18), 60)
@@ -356,7 +355,7 @@ class ModernIcons:
             p.drawLine(QPointF(19, 7), QPointF(19, 12))
             p.drawLine(QPointF(19, 7), QPointF(14, 7))
         return ModernIcons._create_icon_from_painter(paint, color)
-    
+
     @staticmethod
     def play(color: str = None) -> QIcon:
         """Play icon."""
@@ -368,14 +367,14 @@ class ModernIcons:
             path.closeSubpath()
             p.drawPath(path)
         return ModernIcons._create_icon_from_painter(paint, color)
-    
+
     @staticmethod
     def stop(color: str = None) -> QIcon:
         """Stop icon."""
         def paint(p: QPainter):
             p.drawRect(QRectF(5, 5, 14, 14))
         return ModernIcons._create_icon_from_painter(paint, color)
-    
+
     @staticmethod
     def warning(color: str = None) -> QIcon:
         """Warning/triangle icon."""
@@ -392,7 +391,7 @@ class ModernIcons:
             p.drawLine(QPointF(12, 9), QPointF(12, 15))
             p.drawPoint(QPointF(12, 18))
         return ModernIcons._create_icon_from_painter(paint, color)
-    
+
     @staticmethod
     def success(color: str = None) -> QIcon:
         """Success/check icon."""
@@ -405,7 +404,7 @@ class ModernIcons:
             p.drawLine(QPointF(7, 12), QPointF(10, 16))
             p.drawLine(QPointF(10, 16), QPointF(17, 8))
         return ModernIcons._create_icon_from_painter(paint, color)
-    
+
     @staticmethod
     def error(color: str = None) -> QIcon:
         """Error/X icon."""
@@ -418,7 +417,7 @@ class ModernIcons:
             p.drawLine(QPointF(8, 8), QPointF(16, 16))
             p.drawLine(QPointF(16, 8), QPointF(8, 16))
         return ModernIcons._create_icon_from_painter(paint, color)
-    
+
     @staticmethod
     def info(color: str = None) -> QIcon:
         """Info icon."""
@@ -431,7 +430,7 @@ class ModernIcons:
             p.drawLine(QPointF(12, 11), QPointF(12, 17))
             p.drawPoint(QPointF(12, 8))
         return ModernIcons._create_icon_from_painter(paint, color)
-    
+
     @staticmethod
     def add(color: str = None) -> QIcon:
         """Add/plus icon."""
@@ -439,7 +438,7 @@ class ModernIcons:
             p.drawLine(QPointF(12, 5), QPointF(12, 19))
             p.drawLine(QPointF(5, 12), QPointF(19, 12))
         return ModernIcons._create_icon_from_painter(paint, color)
-    
+
     @staticmethod
     def copy(color: str = None) -> QIcon:
         """Copy/clipboard icon."""
@@ -449,7 +448,7 @@ class ModernIcons:
             # Front rectangle
             p.drawRoundedRect(QRectF(4, 2, 12, 14), 1, 1)
         return ModernIcons._create_icon_from_painter(paint, color)
-    
+
     @staticmethod
     def external_link(color: str = None) -> QIcon:
         """External link icon."""
@@ -467,7 +466,7 @@ class ModernIcons:
             p.drawLine(QPointF(20, 4), QPointF(20, 10))
             p.drawLine(QPointF(10, 14), QPointF(20, 4))
         return ModernIcons._create_icon_from_painter(paint, color)
-    
+
     @staticmethod
     def dump(color: str = None) -> QIcon:
         """Dump/download icon."""
@@ -489,7 +488,7 @@ class ModernIcons:
 # Convenience function for getting icon with text (for toolbars/menus)
 def get_icon_text(icon_func, text: str, color: str = None) -> tuple:
     """Get an icon and text pair for use in menus.
-    
+
     Returns:
         Tuple of (QIcon, str) for use with addAction(icon, text, ...)
     """

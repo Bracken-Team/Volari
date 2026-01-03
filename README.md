@@ -1,136 +1,248 @@
-# Volatility 3: The volatile memory extraction framework
+# Volari - Memory Forensics GUI
 
-Volatility is the world's most widely used framework for extracting digital
-artifacts from volatile memory (RAM) samples. The extraction techniques are
-performed completely independent of the system being investigated but offer
-visibility into the runtime state of the system. The framework is intended
-to introduce people to the techniques and complexities associated with
-extracting digital artifacts from volatile memory samples and provide a
-platform for further work into this exciting area of research.
+<p align="center">
+  <img src="volatility_gui/resources/volari_icon.png" alt="Volari Logo" width="128"/>
+</p>
 
-In 2019, the Volatility Foundation released a complete rewrite of the
-framework, Volatility 3. The project was intended to address many of the
-technical and performance challenges associated with the original
-code base that became apparent over the previous 10 years. Another benefit
-of the rewrite is that Volatility 3 could be released under a custom
-license that was more aligned with the goals of the Volatility community,
-the Volatility Software License (VSL). See the
-[LICENSE](https://www.volatilityfoundation.org/license/vsl-v1.0) file for
-more details.
+**Volari** is a modern, cross-platform graphical user interface for [Volatility 3](https://github.com/volatilityfoundation/volatility3), the world's most widely used memory forensics framework.
 
-## Quick Start
+![Volari Screenshot](docs/screenshots/main_window.png)
+*Screenshot placeholder - add main window screenshot*
 
-1. Install the required dependencies:
+---
 
-    ```shell
-    pip install --user -e ".[full]"
-    ```
+## ✨ Features
 
-2. See available options:
+- **🎨 Modern Dark Theme** - Tokyo Night-inspired design with seamless macOS integration
+- **📊 Interactive Dashboard** - OS info, processes, network, registry, files, and more
+- **🔍 Auto-Investigation** - Queue and run multiple plugins automatically
+- **📈 Timeline Analysis** - Visualize events with interactive charts
+- **🦠 Malware Detection** - IOC scanning and VirusTotal integration
+- **📄 PDF Reports** - Generate professional forensic reports
+- **⚡ Queue System** - Pause, resume, and prioritize analysis tasks
 
-    ```shell
-    vol -h
-    ```
+---
 
-3. To get more information on a Windows memory sample and to make sure Volatility supports that sample type, run `vol -f <imagepath> windows.info`:
+## 📋 Supported Platforms
 
-    ```shell
-    vol -f /home/user/samples/stuxnet.vmem windows.info
-    ```
+| Platform | Status | Notes |
+|----------|--------|-------|
+| **macOS** | ✅ Full Support | Native titlebar, dark mode |
+| **Windows** | ✅ Full Support | Windows 10/11 |
+| **Linux** | ✅ Full Support | Ubuntu 20.04+, Fedora 35+ |
 
-4. Run some other plugins. The `-f` or `--single-location` is not strictly required, but most plugins expect a single sample.
-Some also require/accept other options.  Run `vol <plugin> -h` for more information on a particular command.
+---
 
-## Installing
+## 🚀 Quick Start
 
-Volatility 3 requires Python 3.8.0 or later and is published on the [PyPi registry](https://pypi.org/project/volatility3).
+### Prerequisites
 
-```shell
-pip install volatility3
-```
+- Python 3.9 or later
+- pip (Python package manager)
 
-If you want to use the latest development version of Volatility 3 we recommend you manually clone this repository and install an editable version of the project.
-We recommend you use a virtual environment to keep installed dependencies separate from system packages.
+### Installation
 
-The latest stable version of Volatility will always be the `stable` branch of the GitHub repository. The default branch is `develop`.
+#### Option 1: Install from Source (Recommended)
 
-```shell
+```bash
+# Clone the repository
 git clone https://github.com/volatilityfoundation/volatility3.git
-cd volatility3/
-python3 -m venv venv && . venv/bin/activate
-pip install -e ".[dev]"
+cd volatility3
+
+# Create virtual environment
+python3 -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
 ```
 
-## Symbol Tables
+#### Option 2: Install as Package
 
-Symbol table packs for the various operating systems are available for download at:
+```bash
+pip install volari
+```
 
-<https://downloads.volatilityfoundation.org/volatility3/symbols/windows.zip>
+### Launch the GUI
 
-<https://downloads.volatilityfoundation.org/volatility3/symbols/mac.zip>
+```bash
+# From source
+python volatility_gui/main.py
 
-<https://downloads.volatilityfoundation.org/volatility3/symbols/linux.zip>
+# Or if installed as package
+volari
+```
 
-The hashes to verify whether any of the symbol pack files have downloaded successfully or have changed can be found at:
+---
 
-<https://downloads.volatilityfoundation.org/volatility3/symbols/SHA256SUMS>
+## ⚙️ Configuration
 
-<https://downloads.volatilityfoundation.org/volatility3/symbols/SHA1SUMS>
+### Environment Variables
 
-<https://downloads.volatilityfoundation.org/volatility3/symbols/MD5SUMS>
+Copy `.env.example` to `.env` and configure:
 
-Symbol tables zip files must be placed, as named, into the `volatility3/symbols` directory (or just the symbols directory next to the executable file).
+```bash
+cp .env.example .env
+```
 
-Windows symbols that cannot be found will be queried, downloaded, generated and cached.  Mac and Linux symbol tables must be manually produced by a tool such as [dwarf2json](https://github.com/volatilityfoundation/dwarf2json).
+Edit `.env`:
 
-Important: The first run of volatility with new symbol files will require the cache to be updated.  The symbol packs contain a large number of symbol files and so may take some time to update!
-However, this process only needs to be run once on each new symbol file, so assuming the pack stays in the same location will not need to be done again.  Please also note it can be interrupted and next run will restart itself.
+```ini
+# VirusTotal API Key (required for malware scanning)
+VIRUSTOTAL_API_KEY=your_api_key_here
 
-Please note: These are representative and are complete up to the point of creation for Windows and Mac.  Due to the ease of compiling Linux kernels and the inability to uniquely distinguish them, an exhaustive set of Linux symbol tables cannot easily be supplied.
+# Logging level (DEBUG, INFO, WARNING, ERROR)
+VOLARI_LOG_LEVEL=INFO
 
-## Documentation
+# Theme preference (dark, light, system)
+VOLARI_THEME=dark
+```
 
-The framework is documented through doc strings and can be built using sphinx.
+### Settings
 
-The latest generated copy of the documentation can be found at: <https://volatility3.readthedocs.io/en/latest/>
+Access Settings via **Volari → Settings** (macOS) or **File → Settings**.
 
-## Licensing and Copyright
+| Setting | Description |
+|---------|-------------|
+| Theme | Dark, Light, or System |
+| VirusTotal API Key | For malware scanning |
+| Analyst Name | For PDF report headers |
 
-Copyright (C) 2007-2025 Volatility Foundation
+---
 
-All Rights Reserved
+## 🖼️ Screenshots
 
-<https://www.volatilityfoundation.org/license/vsl-v1.0>
+### Process Analysis
+![Process Tab](docs/screenshots/process_tab.png)
+*Placeholder - add process tab screenshot*
 
-## Bugs and Support
+### Timeline View
+![Timeline](docs/screenshots/timeline.png)
+*Placeholder - add timeline screenshot*
 
-If you think you've found a bug, please report it at:
+### Investigation Queue
+![Queue](docs/screenshots/queue.png)
+*Placeholder - add queue screenshot*
 
-<https://github.com/volatilityfoundation/volatility3/issues>
+---
 
-In order to help us solve your issues as quickly as possible,
-please include the following information when filing a bug:
+## 📖 Documentation
 
-- The version of Volatility you're using
-- The operating system used to run Volatility
-- The version of Python used to run Volatility
-- The suspected operating system of the memory sample
-- The complete command line you used to run Volatility
+Full documentation available in the [docs/](docs/) folder:
 
-For community support, please join us on Slack:
+- [Installation Guide](docs/installation.md)
+- [Usage Guide](docs/usage.md)
+- [Configuration](docs/configuration.md)
+- [Developer Guide](docs/developer_guide.md)
+- [Changelog](docs/changelog.md)
 
-<https://www.volatilityfoundation.org/slack>
+---
 
-## Contact
+## 🔧 Troubleshooting
 
-For information or requests, contact:
+### Qt/PyQt6 Issues
 
-Volatility Foundation
+**Problem:** `ModuleNotFoundError: No module named 'PyQt6'`
 
-Web: <https://www.volatilityfoundation.org>
+```bash
+pip install PyQt6>=6.0.0
+```
 
-Blog:     <https://volatility-labs.blogspot.com>
+**Problem:** Font rendering issues on Linux
 
-Email: volatility (at) volatilityfoundation (dot) org
+```bash
+sudo apt install libxcb-xinerama0
+```
 
-Twitter: [@volatility](https://twitter.com/volatility)
+### Plugin Loading
+
+**Problem:** Plugins not loading
+
+1. Ensure Volatility 3 is installed: `pip install -e .`
+2. Check symbol tables are downloaded
+3. Verify Python path includes project root
+
+### macOS Issues
+
+**Problem:** App shows "Damaged" warning
+
+```bash
+xattr -cr /path/to/Volari.app
+```
+
+**Problem:** Dark mode not applying
+
+Ensure PyObjC is installed:
+```bash
+pip install pyobjc-core pyobjc-framework-Cocoa
+```
+
+### Memory/Performance
+
+**Problem:** High memory usage during analysis
+
+- Use the Queue system to limit concurrent plugins
+- Clear completed tasks periodically
+- Restart app between large analyses
+
+---
+
+## 🛠️ Development
+
+### Setup Development Environment
+
+```bash
+git clone https://github.com/volatilityfoundation/volatility3.git
+cd volatility3
+python3 -m venv venv
+source venv/bin/activate
+pip install -e ".[dev]"
+pip install -r requirements.txt
+```
+
+### Run Tests
+
+```bash
+pytest tests/ -v
+```
+
+### Lint Code
+
+```bash
+ruff check volatility_gui/
+```
+
+### Build Standalone App
+
+```bash
+# macOS
+pyinstaller volari.spec --clean --noconfirm
+
+# Output: dist/Volari.app
+```
+
+---
+
+## 📄 License
+
+Volatility Software License (VSL) - See [LICENSE.txt](LICENSE.txt)
+
+---
+
+## 🤝 Contributing
+
+Contributions welcome! Please read our contributing guidelines first.
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests and linting
+5. Submit a pull request
+
+---
+
+## 📞 Contact
+
+- **Volatility Foundation**: https://www.volatilityfoundation.org
+- **Slack**: https://www.volatilityfoundation.org/slack
+- **Issues**: https://github.com/volatilityfoundation/volatility3/issues

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Volari
+Comment=GUI for Volatility 3 Memory Forensics
+Exec=volari
+Icon=volari
+Categories=Utility;Security;
+Terminal=false
+StartupNotify=true
