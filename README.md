@@ -1,7 +1,7 @@
 # Volari - Memory Forensics GUI
 
 <p align="center">
-  <img src="volatility_gui/resources/volari_icon.png" alt="Volari Logo" width="128"/>
+  <img src="volatility_gui/resources/volari_icon.png" alt="Volari Logo" width="256"/>
 </p>
 
 **Volari** is a modern, cross-platform graphical user interface for [Volatility 3](https://github.com/volatilityfoundation/volatility3), the world's most widely used memory forensics framework.
@@ -46,8 +46,8 @@
 
 ```bash
 # Clone the repository
-git clone https://github.com/volatilityfoundation/volatility3.git
-cd volatility3
+git clone https://github.com/Bracken-Team/Volari.git
+cd Volari
 
 # Create virtual environment
 python3 -m venv venv
