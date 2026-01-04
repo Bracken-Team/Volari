@@ -98,7 +98,6 @@ def _setup_macos_app_identity(theme: str) -> None:
 
     try:
         from Foundation import NSBundle
-        from AppKit import NSAppearance, NSAppearanceNameDarkAqua
 
         # Set the app name in the dock and menu bar
         bundle = NSBundle.mainBundle()

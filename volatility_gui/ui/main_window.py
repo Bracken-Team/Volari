@@ -691,7 +691,7 @@ class MainWindow(QMainWindow):
                 worker.finished.disconnect()
                 worker.error.disconnect()
                 worker.progress.disconnect()
-            except:
+            except Exception:
                 pass  # Signals might already be disconnected
 
             # Clean up
